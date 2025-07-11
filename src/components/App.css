@@ -1,0 +1,114 @@
+Event Description
+.event-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Number of lines to show */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.5; /* Adjust line-height to fit your design */
+  max-height: 4.5em; /* Adjust based on line-height and number of lines */
+}
+
+/* Full Page Carousel */
+.full-page-carousel .carousel-item {
+  height: 100vh; 
+  background-color: rgb(0, 0, 0);
+}
+
+.full-page-carousel .carousel-item img {
+  max-height: 100%; 
+  object-fit: cover;
+}
+
+
+/* Navbar Custom Styles */
+.custom-navbar .btn-outline-info,
+.custom-navbar .btn-outline-danger {
+  border-radius: 0; 
+}
+
+.outline-info,
+.outline-danger {
+  border-radius: 0; 
+}
+
+/* Navigation Link Transition */
+.nav-link {
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+.nav-link:hover {
+  color: rgb(255, 0, 0) !important;
+  text-shadow: 0 0 0px red;
+}
+
+/* Card Transition Effects */
+.transition-card {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.transition-card:hover {
+  transform: scale(1.03); 
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Event Card Styling */
+.event-card {
+  border: 1px solid;
+  border-image-slice: 1;
+  border-width: 1px;
+  border-image-source: linear-gradient(to left, rgb(0, 0, 0), red, blue, orange);
+  animation: glowing 1s infinite;
+}
+
+/* Glowing Border Animation */
+@keyframes glowing {
+  0% {
+    border-color: rgb(21, 0, 255);
+    box-shadow: 0 0 3px whitesmoke;
+    border-radius: 7px;
+  }
+  50% {
+    border-color: rgb(0, 4, 255);
+    box-shadow: 0 0 2px whitesmoke;
+    border-radius: 7px;
+  }
+  100% {
+    border-color: rgb(0, 34, 255);
+    box-shadow: 0 0 1px whitesmoke;
+    border-radius: 7px;
+  }
+}
+
+/* Bounce Animation for Cards */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+    animation-timing-function: ease-in-out;
+  }
+  20% {
+    transform: translateY(-20px);
+    animation-timing-function: ease-out;
+  }
+  40% {
+    transform: translateY(0);
+    animation-timing-function: ease-in;
+  }
+  80% {
+    transform: translateY(0);
+    animation-timing-function: ease-in;
+  }
+}
+
+.bounce {
+  animation: bounce 2s infinite;
+}
+
+/* Footer Hover Effect */
+.footer h5 {
+  transition: color 0.3s ease;
+}
+
+.footer h5:hover {
+  color: #dc3545; 
+}

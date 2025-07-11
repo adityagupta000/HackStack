@@ -1,0 +1,51 @@
+# Node modules
+node_modules/
+**/node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+**/.env*
+!.env.example  # Optional: allow a safe example file
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+**/build/
+
+# Uploaded files
+backend/uploads/
+
+# Python cache & bytecode
+*.pyc
+*.pyo
+__pycache__/
+**/__pycache__/
+
+# Local IDE/project settings
+.vscode/
+.idea/
+
+# React testing setup
+src/setupTests.js
+src/reportWebVitals.js
+
+# Project-specific Python & export files
+export.py
+backend/backend.py
+
+# Exported PDFs or internal docs
+*.pdf
+
+# Tailwind/PostCSS (optional)
+.postcssrc
+tailwind.config.js
+postcss.config.js
