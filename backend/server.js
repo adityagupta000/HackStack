@@ -12,6 +12,7 @@ const eventRoutes = require("./routes/eventRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
 const errorMiddleware = require("./middleware/errorMiddleware");
 const { loginLimiter, globalLimiter } = require("./middleware/rateLimit");
+const registrationRoutes = require("./routes/registrationRoutes");
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -65,6 +66,7 @@ app.use(globalLimiter);
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/protected", protectedRoutes);
+app.use("/api/registrations", registrationRoutes);
 
 app.use(errorMiddleware);
 

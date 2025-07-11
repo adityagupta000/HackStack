@@ -16,6 +16,7 @@ import Register from "./pages/Register.jsx";
 import AdminPanel from "./components/AdminPanel";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import UserDashboard from "./components/UserDashboard";
 
 // ==============================
 // PrivateRoute Component
@@ -80,6 +81,7 @@ function ConditionalFooter() {
     "/admin",
     "/about",
     "/forgot-password",
+    "/my-events",
   ];
 
   const hideFooter =
@@ -122,7 +124,7 @@ function App() {
       <div className="App d-flex flex-column min-vh-100">
         <div className="flex-grow-1">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Login />} /> {/* Default page */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/about" element={<About />} />
@@ -137,6 +139,8 @@ function App() {
                 <PrivateRoute element={<AdminPanel />} allowedRole="admin" />
               }
             />
+            <Route path="/my-events" element={<UserDashboard />} />
+            <Route path="/home" element={<Home />} /> {/* Optional */}
           </Routes>
         </div>
         <ConditionalFooter />

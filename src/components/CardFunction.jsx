@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Button, Card } from "react-bootstrap";
+import axios from "axios";
+import toast from "react-hot-toast";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
@@ -11,14 +13,36 @@ const EventCard = ({
   time,
   description,
   image,
-  link,
   ruleBook,
+  isRegistered = false,
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [registered, setRegistered] = useState(isRegistered);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
-  // Functions to handle modal visibility
   const handleShow = () => setShowModal(true);
   const handleClose = () => setShowModal(false);
+
+  const handleRegister = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await axios.post(
+        `http://localhost:5000/api/registrations/${eventId}/register`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      toast.success(res.data.message);
+      setRegistered(true);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Error registering for event."
+      );
+    }
+  };
 
   return (
     <>
@@ -26,6 +50,7 @@ const EventCard = ({
       <div className="card-container">
         <Card
           className="event-card mt-3 mb-3 card-glow bg-black text-white"
+          style={{ height: "590px" }} // ✅ Fixed width
           onMouseMove={(e) => {
             const card = e.currentTarget;
             if (window.innerWidth >= 768) {
@@ -58,8 +83,30 @@ const EventCard = ({
               <i className="fas fa-clock me-2" style={{ color: "red" }}></i>
               {time || "Time not available"}
             </Card.Text>
+
+            {/* Description with Read More toggle */}
             <Card.Text className="description-text">
-              {description || "No description provided."}
+              {description
+                ? showFullDescription
+                  ? description
+                  : description.slice(0, 300) + (description.length > 300 ? "..." : "")
+                : "No description provided."}
+
+              {description?.length > 100 && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFullDescription(!showFullDescription);
+                  }}
+                  style={{
+                    color: "#0dcaf0",
+                    cursor: "pointer",
+                    marginLeft: "5px",
+                  }}
+                >
+                  {showFullDescription ? "Show less" : "Read more"}
+                </span>
+              )}
             </Card.Text>
           </Card.Body>
         </Card>
@@ -100,7 +147,6 @@ const EventCard = ({
           </div>
         </Modal.Body>
         <Modal.Footer className="justify-content-end">
-          {/* Download Rule Book Button (Shown only if available) */}
           {ruleBook && (
             <Button
               variant="outline-info"
@@ -111,7 +157,6 @@ const EventCard = ({
               Download Rule Book
             </Button>
           )}
-
           <Button
             variant="outline-danger"
             onClick={handleClose}
@@ -119,19 +164,29 @@ const EventCard = ({
           >
             Close
           </Button>
-          <Button
-            variant="outline-success"
-            href={link}
-            target="_blank"
-            style={{ borderRadius: "10px" }}
-          >
-            Register Now
-          </Button>
+          {!registered && (
+            <Button
+              variant="outline-success"
+              onClick={handleRegister}
+              style={{ borderRadius: "10px" }}
+            >
+              Register
+            </Button>
+          )}
+          {registered && (
+            <Button
+              variant="outline-secondary"
+              disabled
+              style={{ borderRadius: "10px" }}
+            >
+              Registered
+            </Button>
+          )}
         </Modal.Footer>
       </Modal>
 
+      {/* Inline Styles */}
       <style>{`
-        /* Card Styles */
         .card-container {
           display: flex;
           justify-content: center;
@@ -142,9 +197,6 @@ const EventCard = ({
         .event-card {
           cursor: pointer;
           border: 1px solid black;
-          width: 100%;
-          max-width: 300px;
-          margin: auto;
           box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
           transition: transform 0.3s ease, box-shadow 0.3s ease-in-out;
           position: relative;
@@ -156,21 +208,18 @@ const EventCard = ({
           box-shadow: 0 0px white;
           transform: scale(1.05);
         }
-        
-        /* Description text styling - main improvement */
+
         .description-text {
-          text-align: justify !important;
-          text-justify: inter-word !important;
+          text-align: justify;
+          text-justify: inter-word;
           word-wrap: break-word;
           hyphens: auto;
           line-height: 1.5;
           letter-spacing: 0.02em;
           word-spacing: 0.05em;
           margin-top: 10px;
-          overflow-wrap: break-word;
         }
-        
-        /* Modal description specific styling */
+
         .modal-description {
           padding-right: 10px;
           max-width: 100%;
@@ -189,15 +238,14 @@ const EventCard = ({
           color: red;
         }
 
-        /* Modal Styles */
         .modal-custom .modal-dialog {
           transition: transform 0.3s ease-in-out;
         }
 
         .modal-custom .modal-content {
-          background-color:#28282B; 
-          color:white; 
-          border: 2px solid black; 
+          background-color: #28282B;
+          color: white;
+          border: 2px solid black;
         }
 
         .modal-img {
@@ -206,24 +254,15 @@ const EventCard = ({
           border-radius: 5px;
         }
 
-        /* Responsive Styles */
         @media (min-width: 992px) {
           .modal-img {
             width: 50%;
           }
-          .modal-body .d-flex {
-            flex-direction: row;
-            justify-content: center;
-          }
         }
 
-        @media (max-width: 991px) and (min-width: 768px) {
+        @media (max-width: 991px) {
           .modal-img {
-            width: 70%;
-          }
-          .modal-body .d-flex {
-            flex-direction: column;
-            align-items: center;
+            width: 100%;
           }
         }
 
@@ -231,16 +270,7 @@ const EventCard = ({
           .event-card {
             max-width: none;
           }
-          .modal-img {
-            width: 100%;
-          }
-          .modal-body .d-flex {
-            flex-direction: column;
-            align-items: center;
-          }
-          /* Ensure text justification on mobile too */
           .description-text {
-            text-align: justify !important;
             padding: 0 5px;
           }
         }

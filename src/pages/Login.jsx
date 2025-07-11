@@ -67,7 +67,7 @@ const Login = () => {
 
       setTimeout(() => {
         setLoading(false);
-        navigate(response.data.role === "admin" ? "/admin" : "/");
+        navigate(response.data.role === "admin" ? "/admin" : "/home");
       }, 1500);
     } catch (error) {
       setAttempts((prevAttempts) => prevAttempts + 1);

@@ -73,9 +73,14 @@ const Footer = () => (
               Terms of Service
             </a>
           </li>
-          <li>
+          {/* <li>
             <a href="#!" className="text-white">
               Contact Us
+            </a>
+          </li> */}
+          <li>
+            <a href="/my-events" className="text-white">
+              My Events
             </a>
           </li>
         </ul>
@@ -107,7 +112,7 @@ const Footer = () => (
     </Row>
     <div className="text-center py-3 bg-black ">
       <p className="mb-0 mt-2">
-        &copy; 2024 Hackathon. Built during a hackathon.
+        &copy; 2025 Hackathon. Built during a hackathon.
       </p>
     </div>
   </footer>
