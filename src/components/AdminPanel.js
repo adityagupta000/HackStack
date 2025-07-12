@@ -18,7 +18,7 @@ const AdminPanel = () => {
   const [time, setTime] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState(null);
-  const [link, setLink] = useState("");
+  // const [link, setLink] = useState("");
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -96,10 +96,10 @@ const AdminPanel = () => {
       setMessage("Please select an event category.");
       return false;
     }
-    if (!link.trim()) {
-      setMessage("Registration link is required.");
-      return false;
-    }
+    // if (!link.trim()) {
+    //   setMessage("Registration link is required.");
+    //   return false;
+    // }
     if (!image) {
       setMessage("Event image is required.");
       return false;
@@ -128,7 +128,7 @@ const AdminPanel = () => {
     formData.append("time", time.trim());
     formData.append("description", description.trim());
     formData.append("image", image);
-    formData.append("link", link.trim());
+    // formData.append("link", link.trim());
     formData.append("category", category.trim());
     formData.append("price", price.toString());
 
@@ -183,7 +183,7 @@ const AdminPanel = () => {
         setTime("");
         setDescription("");
         setImage(null);
-        setLink("");
+        // setLink("");
         setCategory("");
         setRuleBook(null);
         setPrice("");
@@ -368,7 +368,7 @@ const AdminPanel = () => {
                     PDF format only. Max size: 10MB
                   </small>
                 </div>
-                <div className="mb-4">
+                {/* <div className="mb-4">
                   <label className="block text-gray-700 text-sm font-medium mb-2">
                     Registration Link
                   </label>
@@ -379,7 +379,7 @@ const AdminPanel = () => {
                     onChange={(e) => setLink(e.target.value)}
                     placeholder="https://"
                   />
-                </div>
+                </div> */}
                 <div className="mb-6">
                   <label className="block text-gray-700 text-sm font-medium mb-2">
                     Event Price

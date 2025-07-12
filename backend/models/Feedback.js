@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const registrationSchema = new mongoose.Schema({
+const feedbackSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -11,17 +11,14 @@ const registrationSchema = new mongoose.Schema({
     ref: "Event",
     required: true,
   },
-  registeredAt: {
+  text: {
+    type: String,
+    required: true,
+  },
+  submittedAt: {
     type: Date,
     default: Date.now,
   },
-  verificationToken: {
-    type: String,
-    unique: true,
-  },
-  tokenExpiresAt: {
-    type: Date,
-  },
 });
 
-module.exports = mongoose.model("Registration", registrationSchema);
+module.exports = mongoose.model("Feedback", feedbackSchema);

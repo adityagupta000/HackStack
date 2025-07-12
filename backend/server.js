@@ -8,7 +8,9 @@ const fs = require("fs"); // To check if the uploads folder exists
 const connectDB = require("./config/db"); // Connect to MongoDB
 // Import routes
 const authRoutes = require("./routes/authRoutes");
+const verifyRoutes = require("./routes/verifyRoutes");
 const eventRoutes = require("./routes/eventRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
 const errorMiddleware = require("./middleware/errorMiddleware");
 const { loginLimiter, globalLimiter } = require("./middleware/rateLimit");
@@ -62,9 +64,11 @@ app.use(
 );
 
 //    API Routes
+app.use("/", verifyRoutes);
 app.use(globalLimiter);
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/registrations", registrationRoutes);
 

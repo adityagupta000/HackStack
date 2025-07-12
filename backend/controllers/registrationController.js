@@ -1,7 +1,13 @@
+const mongoose = require("mongoose");
 const Registration = require("../models/Registration");
-const PDFDocument = require("pdfkit");
 const Event = require("../models/Event");
 const User = require("../models/User");
+const PDFDocument = require("pdfkit");
+const QRCode = require("qrcode");
+const crypto = require("crypto");
+
+const verificationToken = crypto.randomBytes(20).toString("hex");
+const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
 exports.registerForEvent = async (req, res) => {
   const { eventId } = req.params;
@@ -19,7 +25,12 @@ exports.registerForEvent = async (req, res) => {
         .json({ message: "You already registered for this event." });
     }
 
-    const registration = new Registration({ user: userId, event: eventId });
+    const registration = new Registration({
+      user: userId,
+      event: eventId,
+      verificationToken,
+      tokenExpiresAt,
+    });
     await registration.save();
 
     res.status(201).json({ message: "Successfully registered!" });
@@ -72,32 +83,34 @@ exports.generatePdfReceipt = async (req, res) => {
       return res.status(404).json({ message: "Registration not found" });
     }
 
+    // Generate QR Code
+    const qrData = `http://localhost:3000/verify/${registration.verificationToken}`;
+    const qrImage = await QRCode.toDataURL(qrData);
+
     const doc = new PDFDocument({ margin: 50 });
 
-    // Set response headers
+    // Set headers
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename=receipt_${registrationId}.pdf`
     );
 
-    // Pipe before writing content
     doc.pipe(res);
 
     // Title
     doc
+      .font("Helvetica-Bold")
       .fontSize(20)
       .fillColor("#2c3e50")
-      .font("Helvetica-Bold")
-      .text("Event Registration Receipt", { align: "center" });
+      .text("Event Registration Receipt", { align: "center" })
+      .moveDown(1.5);
 
-    doc.moveDown(1);
-
-    // Section: User Info
+    // User Info Section
     doc
+      .font("Helvetica-Bold")
       .fontSize(14)
       .fillColor("#444")
-      .font("Helvetica-Bold")
       .text("Participant Information")
       .moveDown(0.5);
 
@@ -108,13 +121,13 @@ exports.generatePdfReceipt = async (req, res) => {
       .text(`Registration ID: ${registration._id}`)
       .text(`Name: ${registration.user.name}`)
       .text(`Email: ${registration.user.email}`)
-      .moveDown();
+      .moveDown(1);
 
-    // Section: Event Info
+    // Event Info Section
     doc
+      .font("Helvetica-Bold")
       .fontSize(14)
       .fillColor("#444")
-      .font("Helvetica-Bold")
       .text("Event Details")
       .moveDown(0.5);
 
@@ -122,48 +135,55 @@ exports.generatePdfReceipt = async (req, res) => {
       .font("Helvetica")
       .fontSize(12)
       .fillColor("black")
-      .text(`Event Title : ${registration.event.title}`)
-      .text(`Domain      : ${registration.event.category || "N/A"}`)
-      .text(`Date        : ${registration.event.date || "N/A"}`)
-      .text(`Time        : ${registration.event.time || "N/A"}`)
+      .text(`Title: ${registration.event.title}`)
+      .text(`Domain: ${registration.event.category || "N/A"}`)
+      .text(`Date: ${registration.event.date || "N/A"}`)
+      .text(`Time: ${registration.event.time || "N/A"}`)
       .text(
         `Registered On: ${new Date(
-          registration.registeredAt
+          registration.registeredAt || registration.createdAt
         ).toLocaleString()}`
       )
-
       .moveDown();
 
     // Divider
     doc
       .moveTo(doc.page.margins.left, doc.y)
       .lineTo(doc.page.width - doc.page.margins.right, doc.y)
-      .strokeColor("#bbbbbb")
-      .lineWidth(1)
+      .strokeColor("#cccccc")
       .stroke()
       .moveDown();
 
-    // Footer message
+    // QR Code
+    doc.text("Scan the QR code to verify your registration:", {
+      align: "center",
+    });
+    doc.moveDown(0.5);
+
+    doc.image(qrImage, {
+      fit: [100, 100],
+      align: "center",
+    });
+    doc.moveDown(0.5);
+
+    doc.fontSize(10).fillColor("blue").text(qrData, {
+      align: "center",
+      link: qrData,
+      underline: true,
+    });
+
+    // Footer
+    doc.moveDown(1);
     doc
       .fontSize(10)
       .fillColor("gray")
-      .text(
-        "This is a system-generated receipt and does not require a physical signature.",
-        { align: "center", lineGap: 4 }
-      )
-      .moveDown(1);
+      .text("This is an auto-generated receipt. No signature required.", {
+        align: "center",
+      });
 
-    // Thank you
-    doc
-      .fontSize(13)
-      .fillColor("#27ae60")
-      .font("Helvetica-Bold")
-      .text("Thank you for registering!", { align: "center" });
-
-    // Finalize PDF
     doc.end();
   } catch (err) {
-    console.error("PDF generation error:", err);
+    console.error("QR PDF Error:", err);
     res
       .status(500)
       .json({ message: "Error generating PDF", error: err.message });

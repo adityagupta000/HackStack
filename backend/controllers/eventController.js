@@ -32,7 +32,6 @@ exports.addEvent = async (req, res) => {
       .notEmpty()
       .withMessage("Description is required")
       .run(req),
-    body("link").isURL().withMessage("Invalid registration link").run(req),
     body("category")
       .notEmpty()
       .withMessage("Category is required")
@@ -67,7 +66,7 @@ exports.addEvent = async (req, res) => {
   }
 
   try {
-    const { title, date, time, description, link, category, price } = req.body;
+    const { title, date, time, description, category, price } = req.body;
 
     const newEvent = new Event({
       title,
@@ -75,7 +74,6 @@ exports.addEvent = async (req, res) => {
       time,
       description,
       image: `/uploads/${req.file.filename}`,
-      link,
       category,
       price: parseFloat(price),
       registrationFields: JSON.parse(req.body.registrationFields || "[]"),

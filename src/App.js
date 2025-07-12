@@ -17,6 +17,7 @@ import AdminPanel from "./components/AdminPanel";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import UserDashboard from "./components/UserDashboard";
+import VerifyPage from "./pages/VerifyPage";
 
 // ==============================
 // PrivateRoute Component
@@ -82,6 +83,7 @@ function ConditionalFooter() {
     "/about",
     "/forgot-password",
     "/my-events",
+    "/verify",
   ];
 
   const hideFooter =
@@ -115,7 +117,6 @@ function App() {
         }
       }
     };
-
     tryRefresh();
   }, []);
 
@@ -133,6 +134,7 @@ function App() {
               path="/reset-password/:accessToken"
               element={<ResetPassword />}
             />
+            <Route path="/verify/:token" element={<VerifyPage />} />
             <Route
               path="/admin"
               element={
