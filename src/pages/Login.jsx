@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const Login = () => {
   const [lockoutTime, setLockoutTime] = useState(0);
   const [showMessage, setShowMessage] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  const { saveAuth } = useAuth();
 
   useEffect(() => {
     if (message) {
@@ -39,19 +41,17 @@ const Login = () => {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await axiosInstance.post("/auth/login", formData);
+      const response = await axiosInstance.post("/auth/login", formData, {
+        withCredentials: true, // ⬅️ Important for cookie
+      });
 
-      localStorage.setItem("accessToken", response.data.accessToken);
-      localStorage.setItem("refreshToken", response.data.refreshToken);
-
-      localStorage.setItem("role", response.data.role);
+      saveAuth(response.data.accessToken, response.data.role);
 
       if (rememberMe) {
         localStorage.setItem("savedEmail", formData.email);
@@ -63,6 +63,7 @@ const Login = () => {
 
       setMessage("Login successful");
       setAttempts(0);
+      setMessageType("success");
       setFormData({ email: "", password: "" });
 
       setTimeout(() => {

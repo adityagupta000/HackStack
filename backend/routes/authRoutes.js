@@ -3,6 +3,7 @@ const router = express.Router();
 const { check, validationResult } = require("express-validator");
 const User = require("../models/User");
 const { loginLimiter } = require("../middleware/rateLimit");
+const { logout } = require("../controllers/authController");
 const {
   forgotPasswordLimiter,
   invalidEmailLimiter,
@@ -86,28 +87,29 @@ router.post("/login", loginLimiter, async (req, res) => {
       },
     };
 
-    // Generate new access and refresh tokens
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
+
     const refreshToken = jwt.sign(
       { id: user.id },
       process.env.JWT_REFRESH_SECRET,
-      {
-        expiresIn: "7d",
-      }
+      { expiresIn: "7d" }
     );
 
-    // Save the new refresh token in the database
     user.refreshToken = refreshToken;
     await user.save();
 
-    // Send response with both tokens
-    res.json({
-      accessToken,
-      refreshToken,
-      role: user.role,
-    });
+    // ✅ Set HTTP-only cookie
+    res
+      .cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Lax",
+        path: "/api/auth/refreshToken", // Important
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      })
+      .json({ accessToken, role: user.role });
   } catch (err) {
     console.error("Login error:", err.message);
     res.status(500).json({ message: "Server error" });
@@ -137,40 +139,36 @@ router.post(
 
 // Refresh Token Route
 router.post("/refreshToken", async (req, res) => {
-  const { refreshToken } = req.body;
+  const refreshToken = req.cookies?.refreshToken;
 
   if (!refreshToken) {
-    return res.status(400).json({ message: "Refresh token is required" });
+    return res.status(401).json({ message: "Refresh token missing" });
   }
 
   try {
-    // Verify refresh token
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const userId = decoded.user?.id || decoded.id;
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(userId).select("+refreshToken");
+
     if (!user || user.refreshToken !== refreshToken) {
       return res.status(403).json({ message: "Invalid refresh token" });
     }
 
-    // Generate new access token
-    const payload = {
-      user: {
-        id: user.id,
-        role: user.role,
-      },
-    };
+    const accessToken = jwt.sign(
+      { user: { id: user.id, role: user.role } },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
-
-    res.json({ accessToken });
+    res.json({ accessToken, role: user.role });
   } catch (err) {
-    console.error("Refresh token error:", err.message);
     return res
       .status(403)
       .json({ message: "Invalid or expired refresh token" });
   }
 });
+
+router.post("/logout", logout);
 
 module.exports = router;

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
 
-// Define categories exactly as they appear in the backend validation
 const categoryOptions = [
   { display: "SOFTWARE", value: "SOFTWARE DOMAIN EVENTS" },
   { display: "HARDWARE", value: "HARDWARE DOMAIN EVENTS" },
@@ -18,7 +17,6 @@ const AdminPanel = () => {
   const [time, setTime] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState(null);
-  // const [link, setLink] = useState("");
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -30,28 +28,19 @@ const AdminPanel = () => {
 
   useEffect(() => {
     const checkAdmin = async () => {
-      const accessToken = localStorage.getItem("accessToken");
-      const role = localStorage.getItem("role");
-
-      if (!accessToken || role !== "admin") {
-        console.error("Access Denied: Not an admin");
-        navigate("/login");
-        return;
-      }
-
       try {
         const response = await axiosInstance.get("/protected/admin");
-        if (response.status === 200) {
+        if (response.status === 200 && response.data?.admin?.role === "admin") {
           setIsAdmin(true);
+        } else {
+          throw new Error("Not admin");
         }
       } catch (error) {
         console.error(
           "Admin access denied:",
-          error.response?.data || error.message
+          error?.response?.data || error.message
         );
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("role");
+        await axiosInstance.post("/auth/logout");
         navigate("/login");
       }
     };
@@ -59,11 +48,15 @@ const AdminPanel = () => {
     checkAdmin();
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("role");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await axiosInstance.post("/auth/logout", null, { withCredentials: true });
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      localStorage.clear();
+      window.location.href = "/login";
+    }
   };
 
   const handleImageChange = (e) => {
@@ -96,10 +89,7 @@ const AdminPanel = () => {
       setMessage("Please select an event category.");
       return false;
     }
-    // if (!link.trim()) {
-    //   setMessage("Registration link is required.");
-    //   return false;
-    // }
+
     if (!image) {
       setMessage("Event image is required.");
       return false;
@@ -128,16 +118,13 @@ const AdminPanel = () => {
     formData.append("time", time.trim());
     formData.append("description", description.trim());
     formData.append("image", image);
-    // formData.append("link", link.trim());
     formData.append("category", category.trim());
     formData.append("price", price.toString());
 
     formData.append("registrationFields", JSON.stringify([]));
 
-    // For debugging purposes, log the data being sent and the full FormData content
     console.log("Submitting category:", category);
 
-    // Print out all form data keys and values for debugging
     for (let pair of formData.entries()) {
       console.log(pair[0] + ": " + pair[1]);
     }
@@ -368,18 +355,7 @@ const AdminPanel = () => {
                     PDF format only. Max size: 10MB
                   </small>
                 </div>
-                {/* <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-medium mb-2">
-                    Registration Link
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={link}
-                    onChange={(e) => setLink(e.target.value)}
-                    placeholder="https://"
-                  />
-                </div> */}
+
                 <div className="mb-6">
                   <label className="block text-gray-700 text-sm font-medium mb-2">
                     Event Price

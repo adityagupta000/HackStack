@@ -6,6 +6,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
+import axios from "axios"; // 🔄 use raw axios for refresh
 import axiosInstance from "./utils/axiosInstance";
 
 import Footer from "./pages/Footer.jsx";
@@ -29,32 +30,30 @@ const PrivateRoute = ({ element, allowedRole }) => {
   useEffect(() => {
     const checkAuth = async () => {
       const accessToken = localStorage.getItem("accessToken");
-      const refreshToken = localStorage.getItem("refreshToken");
       const role = localStorage.getItem("role");
 
-      if (!accessToken && refreshToken) {
-        // Try to refresh token
+      if (!accessToken) {
         try {
-          const res = await axiosInstance.post("/auth/refreshToken", {
-            refreshToken,
-          });
+          const res = await axios.post(
+            "http://localhost:5000/api/auth/refreshToken",
+            null,
+            { withCredentials: true } // ✅ get cookie from browser
+          );
           localStorage.setItem("accessToken", res.data.accessToken);
+          localStorage.setItem("role", res.data.role);
         } catch (err) {
-          console.error("Refresh token invalid. Logging out.");
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("role");
+          console.error("Token refresh failed.");
+          localStorage.clear();
           setIsAllowed(false);
           setLoading(false);
           return;
         }
       }
 
-      // After possible refresh, validate again
-      const newAccessToken = localStorage.getItem("accessToken");
-      const newRole = localStorage.getItem("role");
+      const updatedAccessToken = localStorage.getItem("accessToken");
+      const updatedRole = localStorage.getItem("role");
 
-      if (newAccessToken && newRole === allowedRole) {
+      if (updatedAccessToken && updatedRole === allowedRole) {
         setIsAllowed(true);
       } else {
         setIsAllowed(false);
@@ -98,25 +97,26 @@ function ConditionalFooter() {
 // ==============================
 function App() {
   useEffect(() => {
-    const refreshToken = localStorage.getItem("refreshToken");
     const accessToken = localStorage.getItem("accessToken");
 
-    // Optional pre-emptive refresh on load
     const tryRefresh = async () => {
-      if (!accessToken && refreshToken) {
+      if (!accessToken) {
         try {
-          const res = await axiosInstance.post("/auth/refreshToken", {
-            refreshToken,
-          });
+          const res = await axios.post(
+            "http://localhost:5000/api/auth/refreshToken",
+            null,
+            { withCredentials: true }
+          );
           localStorage.setItem("accessToken", res.data.accessToken);
+          localStorage.setItem("role", res.data.role);
         } catch (err) {
           console.warn("Token refresh on load failed.");
           localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
           localStorage.removeItem("role");
         }
       }
     };
+
     tryRefresh();
   }, []);
 
@@ -125,7 +125,7 @@ function App() {
       <div className="App d-flex flex-column min-vh-100">
         <div className="flex-grow-1">
           <Routes>
-            <Route path="/" element={<Login />} /> {/* Default page */}
+            <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/about" element={<About />} />
@@ -141,8 +141,13 @@ function App() {
                 <PrivateRoute element={<AdminPanel />} allowedRole="admin" />
               }
             />
-            <Route path="/my-events" element={<UserDashboard />} />
-            <Route path="/home" element={<Home />} /> {/* Optional */}
+            <Route
+              path="/my-events"
+              element={
+                <PrivateRoute element={<UserDashboard />} allowedRole="user" />
+              }
+            />
+            <Route path="/home" element={<Home />} />
           </Routes>
         </div>
         <ConditionalFooter />

@@ -1,11 +1,12 @@
-require("dotenv").config(); // Load environment variables
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const bodyParser = require("body-parser");
 const path = require("path");
-const fs = require("fs"); // To check if the uploads folder exists
-const connectDB = require("./config/db"); // Connect to MongoDB
+const fs = require("fs");
+const connectDB = require("./config/db");
+const cookieParser = require("cookie-parser");
 // Import routes
 const authRoutes = require("./routes/authRoutes");
 const verifyRoutes = require("./routes/verifyRoutes");
@@ -29,15 +30,22 @@ if (!fs.existsSync(uploadsPath)) {
 connectDB();
 
 //    CORS Configuration (Fixes "NotSameOrigin" error)
-const corsOptions = {
-  origin: "*", // Change this to your frontend URL in production (e.g., 'http://localhost:3000')
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["Content-Disposition"], // Allow fetching images
-  credentials: true, // Allow cookies & authentication if needed
-};
+// const corsOptions = {
+//   origin: "*", // Change this to your frontend URL in production (e.g., 'http://localhost:3000')
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+//   exposedHeaders: ["Content-Disposition"], // Allow fetching images
+//   credentials: true, // Allow cookies & authentication if needed
+// };
 
-app.use(cors(corsOptions));
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
+
+app.use(cookieParser());
 
 //    Security Middleware
 app.use(helmet());

@@ -1,42 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import toast, { Toaster } from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 import { Card, Button, Modal, Form } from "react-bootstrap";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-// import "./UserDashboard.css"; // optional for styles
-
-const handleDownloadReceipt = async (registrationId) => {
-  const token = localStorage.getItem("accessToken");
-
-  try {
-    const response = await fetch(
-      `http://localhost:5000/api/registrations/${registrationId}/pdf`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) throw new Error("Failed to fetch PDF");
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `receipt_${registrationId}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    toast.error("Could not download receipt");
-    console.error(error);
-  }
-};
 
 const UserDashboard = () => {
   const [registeredEvents, setRegisteredEvents] = useState([]);
@@ -46,6 +14,8 @@ const UserDashboard = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
+
+  const { accessToken } = useAuth();
 
   const formatDate = (date) => {
     const d = new Date(date);
@@ -58,12 +28,13 @@ const UserDashboard = () => {
   useEffect(() => {
     const fetchRegistrations = async () => {
       try {
-        const token = localStorage.getItem("accessToken");
-        const res = await axiosInstance.get("/registrations/my-registrations", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axiosInstance.get("/registrations/my-registrations");
         setRegisteredEvents(res.data);
       } catch (err) {
+        console.error(
+          "Registration fetch failed",
+          err.response?.data || err.message
+        );
         toast.error("Failed to load your events");
       }
     };
@@ -126,9 +97,31 @@ const UserDashboard = () => {
     }
   };
 
+  const handleDownloadReceipt = async (registrationId) => {
+    try {
+      const response = await axiosInstance.get(
+        `/registrations/${registrationId}/pdf`,
+        {
+          responseType: "blob", // ensures proper file format
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt_${registrationId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error("Could not download receipt");
+      console.error("PDF download error:", error.response || error.message);
+    }
+  };
+
   return (
     <div className="container mt-5">
-      {/* Add Toaster component for displaying toast notifications */}
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -180,10 +173,17 @@ const UserDashboard = () => {
             View Calendar
           </button>
           <button
-            onClick={() => {
-              localStorage.removeItem("accessToken");
-              localStorage.removeItem("refreshToken");
-              window.location.href = "/login";
+            onClick={async () => {
+              try {
+                await axiosInstance.post("/auth/logout", null, {
+                  withCredentials: true,
+                });
+              } catch (err) {
+                console.error("Logout failed:", err);
+              } finally {
+                localStorage.clear();
+                window.location.href = "/login";
+              }
             }}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
           >
