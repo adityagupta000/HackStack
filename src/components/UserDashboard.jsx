@@ -10,11 +10,10 @@ const UserDashboard = () => {
   const [registeredEvents, setRegisteredEvents] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarDate, setCalendarDate] = useState(new Date());
-  const [showCalendar, setShowCalendar] = useState(false); // toggle modal
+  const [showCalendar, setShowCalendar] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
-
   const { accessToken } = useAuth();
 
   const formatDate = (date) => {
@@ -22,7 +21,7 @@ const UserDashboard = () => {
     if (isNaN(d.getTime())) return null;
     const offset = d.getTimezoneOffset();
     const localDate = new Date(d.getTime() - offset * 60 * 1000);
-    return localDate.toISOString().split("T")[0]; // 'YYYY-MM-DD'
+    return localDate.toISOString().split("T")[0];
   };
 
   useEffect(() => {

@@ -6,14 +6,12 @@ const PDFDocument = require("pdfkit");
 const QRCode = require("qrcode");
 const crypto = require("crypto");
 
-const verificationToken = crypto.randomBytes(20).toString("hex");
-const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
-
 exports.registerForEvent = async (req, res) => {
   const { eventId } = req.params;
   const userId = req.user._id;
 
   try {
+    // Check if user already registered for this event
     const alreadyRegistered = await Registration.findOne({
       user: userId,
       event: eventId,
@@ -25,16 +23,21 @@ exports.registerForEvent = async (req, res) => {
         .json({ message: "You already registered for this event." });
     }
 
+    // Generate unique verification token for this registration
+    const verificationToken = crypto.randomBytes(20).toString("hex");
+    const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
+
     const registration = new Registration({
       user: userId,
       event: eventId,
       verificationToken,
       tokenExpiresAt,
     });
-    await registration.save();
 
+    await registration.save();
     res.status(201).json({ message: "Successfully registered!" });
   } catch (err) {
+    console.error("Registration error:", err);
     res
       .status(500)
       .json({ message: "Registration failed", error: err.message });
@@ -50,6 +53,7 @@ exports.getUserRegistrations = async (req, res) => {
     );
     res.json(registrations);
   } catch (err) {
+    console.error("Error fetching user registrations:", err);
     res
       .status(500)
       .json({ message: "Error fetching registrations", error: err.message });
@@ -65,6 +69,7 @@ exports.getEventRegistrants = async (req, res) => {
     );
     res.json(registrants);
   } catch (err) {
+    console.error("Error fetching event registrants:", err);
     res
       .status(500)
       .json({ message: "Error fetching registrants", error: err.message });
@@ -83,8 +88,15 @@ exports.generatePdfReceipt = async (req, res) => {
       return res.status(404).json({ message: "Registration not found" });
     }
 
+    // Verify that the user requesting the PDF is the owner of the registration
+    if (registration.user._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     // Generate QR Code
-    const qrData = `http://localhost:3000/verify/${registration.verificationToken}`;
+    const qrData = `${
+      process.env.FRONTEND_URL || "http://localhost:3000"
+    }/verify/${registration.verificationToken}`;
     const qrImage = await QRCode.toDataURL(qrData);
 
     const doc = new PDFDocument({ margin: 50 });
@@ -164,8 +176,8 @@ exports.generatePdfReceipt = async (req, res) => {
       fit: [100, 100],
       align: "center",
     });
-    doc.moveDown(0.5);
 
+    doc.moveDown(0.5);
     doc.fontSize(10).fillColor("blue").text(qrData, {
       align: "center",
       link: qrData,
@@ -183,7 +195,7 @@ exports.generatePdfReceipt = async (req, res) => {
 
     doc.end();
   } catch (err) {
-    console.error("QR PDF Error:", err);
+    console.error("PDF generation error:", err);
     res
       .status(500)
       .json({ message: "Error generating PDF", error: err.message });

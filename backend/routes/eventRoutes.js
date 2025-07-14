@@ -7,18 +7,17 @@ const {
   uploadRuleBook,
   getRuleBook,
 } = require("../controllers/eventController");
-const authMiddleware = require("../middleware/authMiddleware");
-const adminMiddleware = require("../middleware/adminMiddleware");
+const { verifyToken, isAdmin } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
-// ✅ Get all events (Public Route with Category Filtering)
+// Get all events (Public Route with Category Filtering)
 router.get("/", getEvents);
 
-// ✅ Add a new event (Admin Protected Route)
+// Add a new event (Admin Protected Route)
 router.post(
   "/",
-  authMiddleware,
-  adminMiddleware,
+  verifyToken,
+  isAdmin,
   upload.single("image"), // Image Upload for Event Poster
   [
     body("title").notEmpty().withMessage("Title is required"),
@@ -41,7 +40,6 @@ router.post(
       .isNumeric()
       .withMessage("Price must be a number"),
   ],
-
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -51,11 +49,11 @@ router.post(
   }
 );
 
-// ✅ Upload Rule Book (Admin Protected Route)
+// Upload Rule Book (Admin Protected Route)
 router.post(
   "/:id/upload-rulebook",
-  authMiddleware,
-  adminMiddleware,
+  verifyToken,
+  isAdmin,
   upload.single("ruleBook"), // PDF Upload
   async (req, res) => {
     if (!req.file) {
@@ -67,7 +65,7 @@ router.post(
   }
 );
 
-// ✅ Get Rule Book (Public Route)
+// Get Rule Book (Public Route)
 router.get("/:id/rulebook", getRuleBook);
 
 module.exports = router;

@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const authMiddleware = require("../middleware/authMiddleware");
-
+const { verifyToken } = require("../middleware/authMiddleware");
 const {
   registerForEvent,
   getUserRegistrations,
@@ -9,9 +8,9 @@ const {
   generatePdfReceipt,
 } = require("../controllers/registrationController");
 
-router.post("/:eventId/register", authMiddleware, registerForEvent);
-router.get("/my-registrations", authMiddleware, getUserRegistrations);
-router.get("/:eventId/registrants", authMiddleware, getEventRegistrants);
-router.get("/:registrationId/pdf", authMiddleware, generatePdfReceipt);
+router.post("/:eventId/register", verifyToken, registerForEvent);
+router.get("/my-registrations", verifyToken, getUserRegistrations);
+router.get("/:eventId/registrants", verifyToken, getEventRegistrants);
+router.get("/:registrationId/pdf", verifyToken, generatePdfReceipt);
 
 module.exports = router;

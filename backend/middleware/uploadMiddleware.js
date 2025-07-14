@@ -31,23 +31,52 @@ const fileFilter = (req, file, cb) => {
   } else {
     // Event Image Upload (Only Images)
     if (!allowedImageTypes.includes(file.mimetype)) {
-      return cb(new Error("Invalid file type. Only JPEG and PNG images are allowed."));
+      return cb(
+        new Error("Invalid file type. Only JPEG and PNG images are allowed.")
+      );
     }
   }
   cb(null, true);
 };
 
-// Multer Upload Configuration
+// Create separate upload configurations for images and PDFs
+const imageUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: maxImageSize, // 5MB limit for images
+  },
+  fileFilter: (req, file, cb) => {
+    if (!allowedImageTypes.includes(file.mimetype)) {
+      return cb(
+        new Error("Invalid file type. Only JPEG and PNG images are allowed.")
+      );
+    }
+    cb(null, true);
+  },
+});
+
+const pdfUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: maxPdfSize, // 10MB limit for PDFs
+  },
+  fileFilter: (req, file, cb) => {
+    if (!allowedPdfTypes.includes(file.mimetype)) {
+      return cb(new Error("Invalid file type. Only PDF files are allowed."));
+    }
+    cb(null, true);
+  },
+});
+
+// General upload middleware that determines file type based on URL
 const upload = multer({
   storage: storage,
-  limits: (req, file, cb) => {
-    if (req.url.includes("upload-rulebook")) {
-      cb(null, { fileSize: maxPdfSize }); // 10MB limit for PDFs
-    } else {
-      cb(null, { fileSize: maxImageSize }); // 5MB limit for images
-    }
+  limits: {
+    fileSize: maxPdfSize, // Use max size for both
   },
   fileFilter: fileFilter,
 });
 
 module.exports = upload;
+module.exports.imageUpload = imageUpload;
+module.exports.pdfUpload = pdfUpload;

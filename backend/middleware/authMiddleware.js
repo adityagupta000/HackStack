@@ -1,38 +1,45 @@
+// middleware/authMiddleware.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 require("dotenv").config();
 
-const authMiddleware = async (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   try {
-    const authHeader = req.header("Authorization");
+    const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No access token provided." });
+      return res.status(401).json({ message: "No token provided" });
     }
 
     const token = authHeader.split(" ")[1];
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res
-        .status(401)
-        .json({ message: "Invalid or expired access token." });
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const userId = decoded.id || decoded.user?.id || decoded.userId;
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("-password");
+
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ message: "User not found" });
     }
 
     req.user = user;
     next();
   } catch (err) {
-    console.error("Auth error:", err.message);
-    return res.status(500).json({ message: "Server auth error" });
+    console.error("Auth Error:", err.message);
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
-module.exports = authMiddleware;
+const isAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+};
+
+const requireAdmin = [verifyToken, isAdmin];
+
+module.exports = {
+  verifyToken,
+  isAdmin,
+  requireAdmin,
+};
