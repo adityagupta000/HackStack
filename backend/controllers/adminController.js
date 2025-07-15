@@ -1,4 +1,5 @@
-// controllers/adminController.js
+const fs = require("fs");
+const path = require("path");
 const User = require("../models/User");
 const Event = require("../models/Event");
 const Registration = require("../models/Registration");
@@ -26,10 +27,13 @@ exports.getDashboardSummary = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(5)
       .select("-password -refreshToken");
+
     const latestRegistrations = await Registration.find()
-      .populate("user event")
+      .populate("user", "name email")
+      .populate("event", "title")
       .sort({ createdAt: -1 })
       .limit(5);
+
     const latestFeedback = await Feedback.find()
       .sort({ createdAt: -1 })
       .limit(5);
@@ -62,8 +66,9 @@ exports.getAllUsers = async (req, res) => {
 exports.changeUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    if (!["admin", "user"].includes(role))
+    if (!["admin", "user"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
+    }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -113,10 +118,36 @@ exports.getAllEvents = async (req, res) => {
 
 exports.createEvent = async (req, res) => {
   try {
-    const event = new Event(req.body);
+    const {
+      title,
+      date,
+      time,
+      description,
+      category,
+      price,
+      registrationFields,
+    } = req.body;
+
+    const event = new Event({
+      title,
+      date,
+      time,
+      description,
+      category,
+      price: parseFloat(price),
+      registrationFields: JSON.parse(registrationFields || "[]"),
+      image: req.files?.image?.[0]
+        ? `/uploads/${req.files.image[0].filename}`
+        : null,
+      ruleBook: req.files?.ruleBook?.[0]
+        ? `/uploads/${req.files.ruleBook[0].filename}`
+        : null,
+    });
+
     await event.save();
     res.status(201).json(event);
   } catch (err) {
+    console.error("Create Event Error:", err);
     res
       .status(400)
       .json({ message: "Event creation failed", error: err.message });
@@ -125,16 +156,66 @@ exports.createEvent = async (req, res) => {
 
 exports.updateEvent = async (req, res) => {
   try {
-    const updated = await Event.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-    if (!updated) return res.status(404).json({ message: "Event not found" });
+    const eventId = req.params.id;
+    const {
+      title,
+      date,
+      time,
+      description,
+      category,
+      price,
+      registrationFields,
+      existingImage,
+      existingRuleBook,
+    } = req.body;
 
-    res.json(updated);
-  } catch (err) {
+    const updateData = {
+      title,
+      date,
+      time,
+      description,
+      category,
+      price: parseFloat(price),
+      registrationFields: JSON.parse(registrationFields || "[]"),
+    };
+
+    // 🖼 Image
+    if (req.files?.image?.[0]) {
+      updateData.image = `/uploads/${req.files.image[0].filename}`;
+      if (existingImage) {
+        const oldPath = path.join("uploads", path.basename(existingImage));
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+    } else if (existingImage) {
+      updateData.image = existingImage;
+    }
+
+    // 📘 RuleBook
+    if (req.files?.ruleBook?.[0]) {
+      updateData.ruleBook = `/uploads/${req.files.ruleBook[0].filename}`;
+      if (existingRuleBook) {
+        const oldPath = path.join("uploads", path.basename(existingRuleBook));
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+    } else if (existingRuleBook) {
+      updateData.ruleBook = existingRuleBook;
+    }
+
+    const updatedEvent = await Event.findByIdAndUpdate(eventId, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedEvent) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
     res
-      .status(400)
-      .json({ message: "Event update failed", error: err.message });
+      .status(200)
+      .json({ message: "Event updated successfully", event: updatedEvent });
+  } catch (err) {
+    console.error("Update Event Error:", err);
+    res.status(500).json({ message: "Server error during event update" });
   }
 };
 
@@ -149,7 +230,7 @@ exports.deleteEvent = async (req, res) => {
   }
 };
 
-// ================== 📝 Registration & Feedback ==================
+// ================== 📝 Registrations & Feedback ==================
 exports.getAllRegistrations = async (req, res) => {
   try {
     const registrations = await Registration.find()
@@ -166,7 +247,15 @@ exports.getAllRegistrations = async (req, res) => {
 
 exports.getAllFeedback = async (req, res) => {
   try {
-    const feedback = await Feedback.find().sort({ createdAt: -1 });
+    const query = req.query.search || "";
+
+    const feedback = await Feedback.find({
+      $or: [{ text: { $regex: query, $options: "i" } }],
+    })
+      .populate("user", "name email")
+      .populate("event", "title")
+      .sort({ createdAt: -1 });
+
     res.json(feedback);
   } catch (err) {
     res

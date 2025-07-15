@@ -4,13 +4,13 @@ const router = express.Router();
 
 const adminController = require("../controllers/adminController");
 const { verifyToken, isAdmin } = require("../middleware/authMiddleware");
+const upload = require("../middleware/upload");
 
 // 🔒 Protect all admin routes
 router.use(verifyToken, isAdmin);
 
 // === 📊 Admin Dashboard ===
 router.get("/stats", adminController.getAdminStats);
-// router.get("/dashboard-summary", adminController.getDashboardSummary); // ❓ Only if implemented
 
 // === 👥 User Management ===
 router.get("/users", adminController.getAllUsers);
@@ -19,8 +19,22 @@ router.delete("/users/:id", adminController.deleteUser);
 
 // === 🎯 Event Management ===
 router.get("/events", adminController.getAllEvents);
-router.post("/events", adminController.createEvent);
-router.put("/events/:id", adminController.updateEvent);
+router.post(
+  "/events",
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "ruleBook", maxCount: 1 },
+  ]),
+  adminController.createEvent
+);
+router.put(
+  "/events/:id",
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "ruleBook", maxCount: 1 },
+  ]),
+  adminController.updateEvent
+);
 router.delete("/events/:id", adminController.deleteEvent);
 
 // === 📝 Registrations & Feedback Moderation ===

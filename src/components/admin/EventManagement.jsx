@@ -128,6 +128,7 @@ const EventManagement = () => {
   const [toasts, setToasts] = useState([]);
   const [message, setMessage] = useState("");
   const [errorDetails, setErrorDetails] = useState("");
+  const [imagePreview, setImagePreview] = useState(null);
 
   // Toast functions
   const showToast = (message, type = "info") => {
@@ -203,7 +204,17 @@ const EventManagement = () => {
   };
 
   const handleFileChange = (e) => {
-    setSelectedFile(e.target.files[0]);
+    const file = e.target.files[0];
+    setSelectedFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
   };
 
   const handleRuleBookChange = (e) => {
@@ -278,9 +289,16 @@ const EventManagement = () => {
         : ["Name", "Email"];
     formData.append("registrationFields", JSON.stringify(registrationFields));
 
-    // Conditionally add new image or skip
+    // Attach image (new upload)
     if (selectedFile) {
       formData.append("image", selectedFile);
+    } else if (editId && newEvent.imageUrl) {
+      formData.append("existingImage", newEvent.imageUrl); // for backend fallback
+    }
+
+    // Attach rule book (if not uploading new one)
+    if (!ruleBook && editId && newEvent.ruleBookUrl) {
+      formData.append("existingRuleBook", newEvent.ruleBookUrl); // for backend fallback
     }
 
     setLoading(true);
@@ -301,25 +319,32 @@ const EventManagement = () => {
         );
       } else {
         // POST for create
-        response = await axiosInstance.post("/events", formData);
+        response = await axiosInstance.post("/events", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
       }
 
       if (response.status === 200 || response.status === 201) {
-        setMessage(
-          editId ? "Event updated successfully!" : "Event added successfully!"
-        );
+        const eventId = response.data.event?._id || response.data._id;
 
-        // Upload rulebook only if it's a new file and not in edit mode
-        if (ruleBook && !editId) {
+        // Upload ruleBook only when:
+        // - new ruleBook selected
+        // - AND either creating new OR editing and uploading new one
+        if (ruleBook) {
           try {
             const ruleBookForm = new FormData();
             ruleBookForm.append("ruleBook", ruleBook);
 
-            const eventId = response.data.event?._id || response.data._id;
-
             const ruleBookResponse = await axiosInstance.post(
               `/events/${eventId}/upload-rulebook`,
-              ruleBookForm
+              ruleBookForm,
+              {
+                headers: {
+                  "Content-Type": "multipart/form-data",
+                },
+              }
             );
 
             if (ruleBookResponse.status === 200) {
@@ -327,19 +352,31 @@ const EventManagement = () => {
             }
           } catch (ruleBookError) {
             console.error("Rule book upload error:", ruleBookError);
-            setMessage("Event updated, but rule book upload failed.");
+            showToast("Event updated, but rule book upload failed.", "warning");
             setErrorDetails(
               ruleBookError.response?.data?.message || ruleBookError.message
             );
           }
         }
 
+        showToast(
+          editId ? "Event updated successfully!" : "Event added successfully!",
+          "success"
+        );
+        setMessage(
+          editId ? "Event updated successfully!" : "Event added successfully!"
+        );
         resetForm();
         fetchEvents();
       }
     } catch (err) {
       console.error("Failed to submit event:", err);
       setMessage(editId ? "Failed to update event." : "Failed to add event.");
+      showToast(
+        editId ? "Failed to update event." : "Failed to add event.",
+        "error"
+      );
+
       if (err.response) {
         const categoryError = err.response.data?.errors?.find(
           (error) => error.path === "category"
@@ -376,12 +413,12 @@ const EventManagement = () => {
       category: event.category || "",
       price: event.price || "",
       registrationFields: event.registrationFields || [],
-      imageUrl: event.image || "", // <--- Store image URL
-      ruleBookUrl: event.ruleBook || "", // <--- Store rulebook URL
+      imageUrl: event.image || "", // important for edit
+      ruleBookUrl: event.ruleBook || "", // important for edit
     });
 
     setEditId(event._id);
-    setSelectedFile(null); // Only reset if user uploads a new one
+    setSelectedFile(null);
     setRuleBook(null);
     setMessage("");
     setErrorDetails("");
@@ -524,15 +561,14 @@ const EventManagement = () => {
           </small>
         </div>
 
-        {newEvent.imageUrl && !selectedFile && (
-          <div className="mt-2 text-sm text-blue-600 underline">
-            <a
-              href={newEvent.imageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View current image
-            </a>
+        {imagePreview && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-600">New Image Preview:</p>
+            <img
+              src={imagePreview}
+              alt="New Event Poster Preview"
+              className="h-32 object-cover rounded border"
+            />
           </div>
         )}
 
@@ -628,13 +664,19 @@ const EventManagement = () => {
         )}
 
         {newEvent.ruleBookUrl && !ruleBook && (
-          <div className="mt-2 text-sm text-blue-600 underline">
+          <div className="mt-2">
+            <p className="text-sm text-gray-600">Current Rule Book:</p>
             <a
-              href={newEvent.ruleBookUrl}
+              href={
+                newEvent.ruleBookUrl.startsWith("http")
+                  ? newEvent.ruleBookUrl
+                  : `http://localhost:5000${newEvent.ruleBookUrl}`
+              }
               target="_blank"
               rel="noopener noreferrer"
+              className="text-blue-600 underline"
             >
-              View current rulebook
+              View PDF
             </a>
           </div>
         )}
