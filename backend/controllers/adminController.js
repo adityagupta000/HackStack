@@ -23,26 +23,61 @@ exports.getAdminStats = async (req, res) => {
 
 exports.getDashboardSummary = async (req, res) => {
   try {
+    const userCount = await User.countDocuments();
+    const eventCount = await Event.countDocuments();
+    const registrationCount = await Registration.countDocuments();
+    const feedbackCount = await Feedback.countDocuments();
+
+    // 👤 Latest Users
     const latestUsers = await User.find({ role: "user" })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select("-password -refreshToken");
+      .select("name email createdAt");
 
+    // 📝 Latest Registrations
     const latestRegistrations = await Registration.find()
-      .populate("user", "name email")
-      .populate("event", "title")
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(5)
+      .populate("user", "name email")
+      .populate("event", "title");
 
+    // 💬 Latest Feedback
     const latestFeedback = await Feedback.find()
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(5)
+      .populate("user", "name")
+      .populate("event", "title");
 
-    res.json({ latestUsers, latestRegistrations, latestFeedback });
+    // 📊 Domain-wise Event Count (for Pie Chart)
+    const domainBreakdownArray = await Event.aggregate([
+      {
+        $group: {
+          _id: "$category",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const domainBreakdown = {};
+    domainBreakdownArray.forEach((item) => {
+      domainBreakdown[item._id] = item.count;
+    });
+
+    res.json({
+      userCount,
+      eventCount,
+      registrationCount,
+      feedbackCount,
+      domainBreakdown,
+      latestUsers,
+      latestRegistrations,
+      latestFeedback,
+    });
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch summary", error: err.message });
+    res.status(500).json({
+      message: "Failed to fetch dashboard summary",
+      error: err.message,
+    });
   }
 };
 
@@ -233,11 +268,28 @@ exports.deleteEvent = async (req, res) => {
 // ================== 📝 Registrations & Feedback ==================
 exports.getAllRegistrations = async (req, res) => {
   try {
+    const search = req.query.search || "";
+
+    // Find all registrations with populated user & event
     const registrations = await Registration.find()
       .populate("user", "name email")
-      .populate("event", "title");
+      .populate("event", "title")
+      .sort({ createdAt: -1 });
 
-    res.json(registrations);
+    // If search is present, filter manually on populated fields
+    const filtered = registrations.filter((r) => {
+      const userMatch =
+        r.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        r.user?.email?.toLowerCase().includes(search.toLowerCase());
+
+      const eventMatch = r.event?.title
+        ?.toLowerCase()
+        .includes(search.toLowerCase());
+
+      return userMatch || eventMatch;
+    });
+
+    res.json(filtered);
   } catch (err) {
     res
       .status(500)

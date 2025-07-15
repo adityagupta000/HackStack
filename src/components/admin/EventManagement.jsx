@@ -444,7 +444,7 @@ const EventManagement = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-full mx-auto">
       {/* Toast Container */}
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map((toast) => (

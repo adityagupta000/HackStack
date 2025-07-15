@@ -24,9 +24,7 @@ const UserManagement = () => {
 
   const handleRoleChange = async (id, newRole) => {
     try {
-      const res = await axiosInstance.put(`/admin/users/${id}/role`, {
-        role: newRole,
-      });
+      await axiosInstance.put(`/admin/users/${id}/role`, { role: newRole });
       setUsers((prev) =>
         prev.map((u) => (u._id === id ? { ...u, role: newRole } : u))
       );
@@ -47,68 +45,74 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">User Management</h1>
+    <div className="p-6 w-full max-w-full mx-auto">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">User Management</h1>
 
-      <input
-        type="text"
-        placeholder="Search users by name or email"
-        className="border border-gray-300 rounded px-4 py-2 mb-4 w-full sm:w-96"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          className="w-full sm:w-96 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
-      {loading ? (
-        <p>Loading users...</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        {loading ? (
+          <div className="text-center p-6 text-gray-500">Loading users...</div>
+        ) : (
+          <table className="min-w-full text-sm text-left table-auto">
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
               <tr>
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Actions</th>
+                <th className="px-5 py-3">Name</th>
+                <th className="px-5 py-3">Email</th>
+                <th className="px-5 py-3">Role</th>
+                <th className="px-5 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user._id} className="border-t">
-                  <td className="px-4 py-2">{user.name}</td>
-                  <td className="px-4 py-2">{user.email}</td>
-                  <td className="px-4 py-2">
-                    <select
-                      className="border rounded px-2 py-1"
-                      value={user.role}
-                      onChange={(e) =>
-                        handleRoleChange(user._id, e.target.value)
-                      }
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-2">
-                    <button
-                      onClick={() => handleDelete(user._id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 && (
+              {users.length > 0 ? (
+                users.map((user) => (
+                  <tr key={user._id} className="border-b hover:bg-gray-50">
+                    <td className="px-5 py-3">{user.name}</td>
+                    <td className="px-5 py-3">{user.email}</td>
+                    <td className="px-5 py-3">
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:ring-blue-400"
+                        value={user.role}
+                        onChange={(e) =>
+                          handleRoleChange(user._id, e.target.value)
+                        }
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td className="px-5 py-3">
+                      <button
+                        onClick={() => handleDelete(user._id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded transition duration-200"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
-                  <td colSpan="4" className="text-center py-6 text-gray-500">
+                  <td
+                    colSpan="4"
+                    className="text-center py-6 text-gray-500 italic"
+                  >
                     No users found.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

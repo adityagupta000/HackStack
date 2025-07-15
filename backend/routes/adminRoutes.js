@@ -40,5 +40,6 @@ router.delete("/events/:id", adminController.deleteEvent);
 // === 📝 Registrations & Feedback Moderation ===
 router.get("/registrations", adminController.getAllRegistrations);
 router.get("/feedbacks", adminController.getAllFeedback);
+router.get("/dashboard-summary", adminController.getDashboardSummary);
 
 module.exports = router;
