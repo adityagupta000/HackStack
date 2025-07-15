@@ -17,15 +17,15 @@ const sponsors = [
   },
   {
     image: require('../images/16.png'),
-    website: 'https://example.com/sponsor4',
+    website: 'https://example.com/sponsor',
   },
   {
     image: require('../images/17.png'),
-    website: 'https://example.com/sponsor5',
+    website: 'https://example.com/sponsor',
   },
   {
     image: require('../images/18.png'),
-    website: 'https://example.com/sponsor6',
+    website: 'https://example.com/sponsor',
   }
 ];
 

@@ -39,7 +39,7 @@ src/setupTests.js
 src/reportWebVitals.js
 
 # Project-specific Python & export files
-export.py
+backend.py
 backend/backend.py
 
 # Exported PDFs or internal docs
