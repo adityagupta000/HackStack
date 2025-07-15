@@ -63,12 +63,39 @@ exports.getDashboardSummary = async (req, res) => {
       domainBreakdown[item._id] = item.count;
     });
 
+    // 📈 Event-wise Registration Count (for Bar Chart)
+    const eventRegistrationStats = await Registration.aggregate([
+      {
+        $group: {
+          _id: "$event",
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "events",
+          localField: "_id",
+          foreignField: "_id",
+          as: "event",
+        },
+      },
+      { $unwind: "$event" },
+      {
+        $project: {
+          title: "$event.title",
+          count: 1,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
     res.json({
       userCount,
       eventCount,
       registrationCount,
       feedbackCount,
       domainBreakdown,
+      eventRegistrationStats,
       latestUsers,
       latestRegistrations,
       latestFeedback,

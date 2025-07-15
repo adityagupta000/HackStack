@@ -198,6 +198,36 @@ const AdminDashboard = () => {
           )}
         </div>
       </div>
+      {/* Full-width: Registrations per Event Chart */}
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mt-6 w-full">
+        <h2 className="text-base sm:text-lg font-semibold mb-4">
+          Registrations per Event
+        </h2>
+
+        {data.eventRegistrationStats &&
+        data.eventRegistrationStats.length > 0 ? (
+          <ResponsiveContainer width="100%" height={500}>
+            <BarChart data={data.eventRegistrationStats}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="title"
+                interval={0}
+                angle={-30}
+                textAnchor="end"
+                height={80}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#10B981" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <p className="text-gray-500 text-center py-8">
+            No registration data available.
+          </p>
+        )}
+      </div>
     </div>
   );
 };
