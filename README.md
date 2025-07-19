@@ -1,341 +1,159 @@
 # Event Management System - Hack-a-Fest
 
-A comprehensive full-stack event management platform built with React.js frontend and Node.js backend, designed for organizing and managing hackathons and technical events.
+A comprehensive event management platform for organizing hackathons and technical events with seamless user experience.
 
-## 🚀 Features
+## 🖼️ Application Screenshots
 
-### User Features
-- **User Authentication**: Secure registration, login, and password reset with JWT tokens
-- **Event Discovery**: Browse events by categories (Software, Hardware, Robotics, IoT, AI/ML, Cybersecurity)
-- **Event Registration**: Register for events with custom registration fields
-- **User Dashboard**: View registered events, download receipts, and manage registrations
-- **PDF Receipts**: Generate QR code-enabled registration receipts
-- **Feedback System**: Submit feedback for attended events
-- **Calendar Integration**: View events in calendar format
-- **Email Notifications**: Password reset and registration confirmations
+### 🏠 Main Interface
 
-### Admin Features
-- **Admin Dashboard**: Comprehensive analytics with charts and statistics
-- **User Management**: Manage user roles and permissions
-- **Event Management**: Create, edit, and delete events with image and PDF uploads
-- **Registration Management**: View and manage all event registrations
-- **Feedback Review**: Monitor and review user feedback
-- **File Upload**: Support for event images and rule book PDFs
+#### Welcome Page
+![Welcome Page](/placeholder.svg?height=600&width=1200&query=Event%20management%20welcome%20page%20with%20animated%20typing%20text%20and%20countdown%20timer)
+- Animated welcome message with typing effect
+- Live countdown timer and smooth transitions
+
+#### Home Dashboard
+![Home Page](/placeholder.svg?height=800&width=1200&query=Event%20management%20home%20page%20with%20colorful%20event%20cards%20and%20category%20filters)
+- Event grid with search functionality
+- Category filtering and responsive cards
+
+#### Event Cards & Details
+![Event Card](/placeholder.svg?height=500&width=800&query=Detailed%20event%20card%20showing%20image%20title%20date%20description%20and%20register%20button)
+![Event Modal](/placeholder.svg?height=600&width=900&query=Event%20details%20popup%20modal%20with%20full%20description%20and%20registration%20form)
+- Event information cards with images and descriptions
+- Detailed modal view with registration integration
+
+### 🔐 Authentication
+
+#### Login & Registration
+![Login Page](/placeholder.svg?height=700&width=1200&query=Modern%20login%20page%20with%20floating%20labels%20and%20dark%20theme%20design)
+![Registration Page](/placeholder.svg?height=800&width=1200&query=User%20registration%20form%20with%20validation%20indicators%20and%20progress%20feedback)
+- Clean login interface with floating labels
+- Registration with real-time validation
+
+#### Password Recovery
+![Forgot Password](/placeholder.svg?height=600&width=1200&query=Password%20reset%20page%20with%20email%20input%20and%20recovery%20instructions)
+![Reset Password](/placeholder.svg?height=600&width=1200&query=Secure%20password%20reset%20form%20with%20strength%20indicators)
+- Email-based recovery system
+- Secure token-based password reset
+
+### 👤 User Dashboard
+
+#### Personal Dashboard
+![User Dashboard](/placeholder.svg?height=800&width=1200&query=Personal%20user%20dashboard%20with%20statistics%20cards%20and%20upcoming%20events)
+- Registration statistics and upcoming events
+- Quick actions and achievement badges
+
+#### My Events & Calendar
+![My Events](/placeholder.svg?height=700&width=1200&query=User%20registered%20events%20grid%20with%20status%20indicators%20and%20action%20buttons)
+![Calendar View](/placeholder.svg?height=600&width=800&query=Calendar%20interface%20with%20highlighted%20event%20dates%20and%20event%20details)
+- Event status tracking and receipt downloads
+- Interactive calendar with color-coded events
+
+#### Receipts & Feedback
+![PDF Receipt](/placeholder.svg?height=800&width=600&query=Professional%20PDF%20receipt%20with%20QR%20code%20and%20participant%20details)
+![Feedback Form](/placeholder.svg?height=500&width=700&query=Event%20feedback%20form%20with%20rating%20stars%20and%20comment%20section)
+- PDF receipts with QR codes
+- Star rating and comment system
+
+### 🔧 Admin Panel
+
+#### Admin Dashboard
+![Admin Dashboard](/placeholder.svg?height=900&width=1400&query=Comprehensive%20admin%20dashboard%20with%20colorful%20charts%20graphs%20and%20statistics)
+- Real-time analytics with charts and metrics
+- Performance indicators and trend analysis
+
+#### Management Interfaces
+![User Management](/placeholder.svg?height=700&width=1200&query=User%20management%20table%20with%20profile%20pictures%20and%20action%20buttons)
+![Create Event](/placeholder.svg?height=900&width=1200&query=Event%20creation%20form%20with%20image%20upload%20drag%20drop%20and%20rich%20text%20editor)
+![Event List](/placeholder.svg?height=700&width=1200&query=Event%20management%20table%20with%20thumbnails%20status%20indicators%20and%20quick%20actions)
+- User management with role assignment
+- Event creation wizard with rich editor
+- Event management with bulk operations
+
+#### Registration & Feedback Management
+![Registration Management](/placeholder.svg?height=700&width=1200&query=Registration%20management%20interface%20with%20participant%20photos%20and%20status%20tracking)
+![Feedback Review](/placeholder.svg?height=700&width=1200&query=Feedback%20analysis%20dashboard%20with%20sentiment%20analysis%20and%20rating%20summaries)
+- Complete registration oversight
+- Feedback analysis with sentiment tracking
+
+### 📱 Mobile Experience
+
+#### Mobile Interfaces
+![Mobile Home](/placeholder.svg?height=800&width=400&query=Mobile%20responsive%20home%20page%20with%20touch%20friendly%20event%20cards)
+![Mobile Login](/placeholder.svg?height=700&width=400&query=Mobile%20login%20interface%20with%20large%20touch%20buttons%20and%20biometric%20options)
+![Mobile Dashboard](/placeholder.svg?height=800&width=400&query=Mobile%20user%20dashboard%20with%20swipeable%20cards%20and%20bottom%20navigation)
+![Mobile Admin](/placeholder.svg?height=800&width=400&query=Mobile%20admin%20interface%20with%20collapsible%20menus%20and%20touch%20optimized%20tables)
+- Touch-optimized interfaces
+- Swipe navigation and biometric login
+- Mobile-specific admin controls
+
+### 🎨 Additional Pages
+
+#### Supporting Pages
+![About Page](/placeholder.svg?height=900&width=1200&query=About%20page%20with%20team%20photos%20mission%20statement%20and%20achievement%20timeline)
+![Footer](/placeholder.svg?height=400&width=1200&query=Comprehensive%20website%20footer%20with%20links%20social%20media%20and%20contact%20info)
+![Sponsors](/placeholder.svg?height=300&width=1200&query=Sponsor%20logos%20carousel%20with%20hover%20effects%20and%20partner%20information)
+- About page with team profiles and mission
+- Footer with social media and contact info
+- Sponsor showcase with partner information
+
+#### System Features
+![QR Verification](/placeholder.svg?height=600&width=800&query=QR%20code%20scanner%20interface%20with%20registration%20confirmation%20display)
+![Loading States](/placeholder.svg?height=400&width=800&query=Various%20loading%20animations%20and%20skeleton%20screens%20for%20smooth%20user%20experience)
+![Toast Notifications](/placeholder.svg?height=300&width=600&query=Colorful%20toast%20notifications%20for%20success%20error%20and%20information%20messages)
+- QR code verification system
+- Loading animations and skeleton screens
+- Color-coded notification system
+
+## ✨ Key Features
+
+### For Participants
+- **Event Discovery**: Browse events by category with advanced search
+- **One-Click Registration**: Instant registration with email confirmation
+- **Digital Receipts**: PDF receipts with QR codes for verification
+- **Personal Dashboard**: Track registrations and manage participation
+- **Calendar Integration**: Sync with personal calendar apps
+- **Feedback System**: Rate and review attended events
+- **Mobile Access**: Full functionality on all devices
+
+### For Administrators
+- **Analytics Dashboard**: Real-time statistics and performance metrics
+- **User Management**: Complete user control with role assignment
+- **Event Creation**: Rich editor with media upload capabilities
+- **Registration Tracking**: Monitor participants with detailed insights
+- **Feedback Analysis**: Review and analyze user feedback
+- **File Management**: Upload images, documents, and rule books
+- **Communication Tools**: Send announcements to participants
 
 ### Technical Features
-- **Responsive Design**: Mobile-first approach with Bootstrap and Tailwind CSS
-- **Real-time Updates**: Dynamic content updates without page refresh
-- **File Management**: Secure file upload and storage system
-- **Rate Limiting**: Protection against spam and abuse
-- **Token Refresh**: Automatic JWT token refresh for seamless user experience
-- **QR Code Verification**: Secure registration verification system
+- **Responsive Design**: Optimized for desktop, tablet, and mobile
+- **Security**: JWT authentication with password encryption
+- **Performance**: Fast loading with smooth interactions
+- **File Upload**: Support for images and PDF documents
+- **QR Integration**: Secure verification system
+- **Email System**: Automated notifications and confirmations
 
 ## 🛠️ Technology Stack
 
-### Frontend
-- **React.js** - Component-based UI library
-- **React Router** - Client-side routing
-- **Bootstrap 5** - CSS framework for responsive design
-- **Tailwind CSS** - Utility-first CSS framework
-- **Axios** - HTTP client for API requests
-- **React Hot Toast** - Toast notifications
-- **React Calendar** - Calendar component
-- **FontAwesome** - Icon library
-- **Recharts** - Chart library for analytics
-
-### Backend
-- **Node.js** - JavaScript runtime
-- **Express.js** - Web application framework
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB object modeling
-- **JWT** - JSON Web Tokens for authentication
-- **bcryptjs** - Password hashing
-- **Multer** - File upload middleware
-- **Nodemailer** - Email sending
-- **PDFKit** - PDF generation
-- **QRCode** - QR code generation
-- **Express Rate Limit** - Rate limiting middleware
-- **Helmet** - Security middleware
-- **CORS** - Cross-origin resource sharing
-
-## 📁 Project Structure
-
-```
-project-root/
-├── backend/
-│   ├── config/
-│   │   ├── db.js                 # Database configuration
-│   │   └── keys.js               # Environment variables validation
-│   ├── controllers/
-│   │   ├── adminController.js    # Admin operations
-│   │   ├── authController.js     # Authentication logic
-│   │   ├── eventController.js    # Event management
-│   │   ├── feedbackController.js # Feedback handling
-│   │   ├── registrationController.js # Registration logic
-│   │   └── verificationController.js # QR verification
-│   ├── middleware/
-│   │   ├── authMiddleware.js     # JWT authentication
-│   │   ├── errorMiddleware.js    # Error handling
-│   │   ├── rateLimit.js          # Rate limiting
-│   │   ├── upload.js             # File upload handling
-│   │   └── uploadMiddleware.js   # Upload configuration
-│   ├── models/
-│   │   ├── Event.js              # Event schema
-│   │   ├── Feedback.js           # Feedback schema
-│   │   ├── Registration.js       # Registration schema
-│   │   └── User.js               # User schema
-│   ├── routes/
-│   │   ├── adminRoutes.js        # Admin API routes
-│   │   ├── authRoutes.js         # Authentication routes
-│   │   ├── eventRoutes.js        # Event routes
-│   │   ├── feedbackRoutes.js     # Feedback routes
-│   │   ├── protectedRoutes.js    # Protected routes
-│   │   ├── registrationRoutes.js # Registration routes
-│   │   └── verifyRoutes.js       # Verification routes
-│   ├── uploads/                  # File storage directory
-│   └── server.js                 # Main server file
-├── src/
-│   ├── components/
-│   │   ├── admin/                # Admin panel components
-│   │   │   ├── AdminDashboard.jsx
-│   │   │   ├── EventManagement.jsx
-│   │   │   ├── FeedbackReview.jsx
-│   │   │   ├── RegistrationManagement.jsx
-│   │   │   └── UserManagement.jsx
-│   │   ├── AdminPanel.jsx        # Main admin interface
-│   │   ├── CardFunction.jsx      # Event card component
-│   │   ├── Carousel.jsx          # Hero carousel
-│   │   ├── Event.js              # Event listing
-│   │   ├── Home.js               # Home page
-│   │   ├── Time.js               # Countdown timer
-│   │   ├── UserDashboard.jsx     # User dashboard
-│   │   └── partner.jsx           # Sponsors section
-│   ├── context/
-│   │   └── AuthContext.js        # Authentication context
-│   ├── pages/
-│   │   ├── About.js              # About page
-│   │   ├── Footer.jsx            # Footer component
-│   │   ├── ForgotPassword.jsx    # Password reset
-│   │   ├── Login.jsx             # Login page
-│   │   ├── Register.jsx          # Registration page
-│   │   ├── ResetPassword.jsx     # Password reset form
-│   │   └── VerifyPage.jsx        # QR verification page
-│   ├── utils/
-│   │   └── axiosInstance.js      # Axios configuration
-│   ├── images/                   # Static images
-│   └── App.js                    # Main React component
-├── public/                       # Public assets
-├── package.json                  # Frontend dependencies
-└── README.md                     # Project documentation
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js (v14 or higher)
-- MongoDB (local or cloud instance)
-- npm or yarn package manager
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd event-management-system
-   ```
-
-2. **Backend Setup**
-   ```bash
-   cd backend
-   npm install
-   ```
-
-3. **Frontend Setup**
-   ```bash
-   cd ../
-   npm install
-   ```
-
-4. **Environment Configuration**
-   
-   Create a `.env` file in the backend directory:
-   ```env
-   # Database
-   MONGO_URI=mongodb://localhost:27017/hackathon-db
-   
-   # JWT Secrets
-   JWT_SECRET=your-jwt-secret-key
-   JWT_REFRESH_SECRET=your-refresh-secret-key
-   JWT_ACCESS_EXPIRY=1h
-   JWT_REFRESH_EXPIRY=7d
-   
-   # Email Configuration
-   EMAIL_USER=your-email@gmail.com
-   EMAIL_PASS=your-app-password
-   
-   # Frontend URL
-   FRONTEND_URL=http://localhost:3000
-   
-   # Server Configuration
-   PORT=5000
-   NODE_ENV=development
-   
-   # Rate Limiting
-   LOGIN_LIMIT_WINDOW=300000
-   LOGIN_LIMIT_MAX=5
-   GLOBAL_LIMIT_WINDOW=60000
-   GLOBAL_LIMIT_MAX=100
-   ```
-
-5. **Database Setup**
-   - Ensure MongoDB is running
-   - The application will create necessary collections automatically
-
-### Running the Application
-
-1. **Start the Backend Server**
-   ```bash
-   cd backend
-   npm start
-   ```
-   Server will run on http://localhost:5000
-
-2. **Start the Frontend Development Server**
-   ```bash
-   cd ../
-   npm start
-   ```
-   Application will open at http://localhost:3000
+**Frontend**: React.js, Bootstrap 5, Tailwind CSS, Axios, React Router
+**Backend**: Node.js, Express.js, MongoDB, JWT, bcryptjs, Multer
+**Features**: PDF generation, QR codes, Email notifications, File uploads
 
 ## 📊 API Endpoints
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/forgot-password` - Password reset request
-- `POST /api/auth/reset-password/:token` - Password reset
-- `POST /api/auth/refreshToken` - Refresh JWT token
+**Authentication**: Register, Login, Password Reset, Token Refresh
+**Events**: CRUD operations, Category filtering, File uploads
+**Registrations**: Event registration, Receipt generation, User tracking
+**Admin**: Statistics, User management, Event oversight
+**Verification**: QR code validation system
 
-### Events
-- `GET /api/events` - Get all events
-- `GET /api/events?category=SOFTWARE` - Filter events by category
-- `POST /api/events` - Create event (Admin only)
-- `PUT /api/events/:id` - Update event (Admin only)
-- `DELETE /api/events/:id` - Delete event (Admin only)
-- `POST /api/events/:id/upload-rulebook` - Upload rule book
-- `GET /api/events/:id/rulebook` - Download rule book
+## 🌟 Platform Benefits
 
-### Registrations
-- `POST /api/registrations/:eventId/register` - Register for event
-- `GET /api/registrations/my-registrations` - Get user registrations
-- `GET /api/registrations/:registrationId/pdf` - Download receipt
+- **All-in-One Solution**: Complete event management in single platform
+- **User-Friendly**: Intuitive design requiring no technical knowledge
+- **Scalable**: Handles events of any size
+- **Secure**: Advanced data protection and privacy measures
+- **Mobile-First**: Optimized for mobile usage
+- **Analytics**: Valuable insights for event improvement
 
-### Admin
-- `GET /api/admin/stats` - Dashboard statistics
-- `GET /api/admin/users` - Get all users
-- `PUT /api/admin/users/:id/role` - Change user role
-- `DELETE /api/admin/users/:id` - Delete user
-- `GET /api/admin/events` - Get all events (Admin view)
-- `GET /api/admin/registrations` - Get all registrations
-- `GET /api/admin/feedbacks` - Get all feedback
-
-### Verification
-- `GET /api/verify/:token` - Verify registration QR code
-
-## 🔐 Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **Password Hashing**: bcrypt for secure password storage
-- **Rate Limiting**: Protection against brute force attacks
-- **Input Validation**: Server-side validation for all inputs
-- **CORS Configuration**: Controlled cross-origin requests
-- **Helmet Security**: Security headers for Express
-- **File Upload Security**: Restricted file types and sizes
-
-## 📱 Responsive Design
-
-The application is fully responsive and optimized for:
-- Desktop computers (1200px+)
-- Tablets (768px - 1199px)
-- Mobile phones (320px - 767px)
-
-## 🎨 UI/UX Features
-
-- **Modern Design**: Clean and intuitive interface
-- **Dark Theme**: Professional dark color scheme
-- **Animations**: Smooth transitions and hover effects
-- **Toast Notifications**: Real-time feedback for user actions
-- **Loading States**: Visual feedback during API calls
-- **Form Validation**: Real-time input validation
-- **Modal Dialogs**: Elegant popup interfaces
-
-## 📈 Analytics & Reporting
-
-The admin dashboard provides:
-- User registration statistics
-- Event popularity metrics
-- Registration trends over time
-- Category-wise event distribution
-- Feedback analysis
-- Real-time data visualization with charts
-
-## 🔧 Development Tools
-
-- **ESLint**: Code linting and formatting
-- **Prettier**: Code formatting
-- **Nodemon**: Development server auto-restart
-- **React DevTools**: Component debugging
-- **MongoDB Compass**: Database management
-
-## 🚀 Deployment
-
-### Frontend Deployment (Vercel/Netlify)
-1. Build the production version: `npm run build`
-2. Deploy the `build` folder to your hosting service
-3. Configure environment variables
-
-### Backend Deployment (Heroku/Railway)
-1. Set up environment variables
-2. Configure MongoDB connection string
-3. Deploy the backend folder
-4. Update CORS settings for production
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -am 'Add feature'`
-4. Push to branch: `git push origin feature-name`
-5. Submit a pull request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👥 Team
-
-- **Frontend Development**: React.js, UI/UX Design
-- **Backend Development**: Node.js, API Design
-- **Database Design**: MongoDB Schema Design
-- **DevOps**: Deployment and Configuration
-
-## 📞 Support
-
-For support and questions:
-- Email: contact@hackafest.com
-- Phone: +91 9966885544
-- Address: 123 Hackathon Street, Mangaluru City, IN 575006
-
-## 🙏 Acknowledgments
-
-- React.js community for excellent documentation
-- MongoDB for robust database solutions
-- Bootstrap team for responsive design framework
-- All contributors and testers
-
----
-
-**Built with ❤️ for the hackathon community**
-```
 
