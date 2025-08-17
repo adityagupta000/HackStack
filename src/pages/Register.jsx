@@ -95,7 +95,10 @@ function HackathonRegister() {
   };
 
   return (
-    <div className="container-fluid d-flex justify-content-center align-items-center min-vh-100 bg-black">
+    <div
+      className="container-fluid d-flex flex-column justify-content-center align-items-center"
+      style={{ minHeight: "100vh", backgroundColor: "black", padding: "20px" }}
+    >
       {showMessage && (
         <div
           className={`toast-message ${messageType}`}
@@ -118,7 +121,7 @@ function HackathonRegister() {
         >
           <i
             className={`fa ${
-              messageType === "error" ? "fa-window-close" : "fa-check-circle"
+              messageType === "error" ? "fa-times-circle" : "fa-check-circle"
             }`}
             style={{ fontSize: "18px" }}
           ></i>
@@ -126,84 +129,215 @@ function HackathonRegister() {
         </div>
       )}
 
-      <div className="row justify-content-center w-100">
-        <div className="col-lg-8 col-md-10 col-sm-12">
-          <div className="p-5 border border-primary rounded shadow-lg bg-light">
-            <h3 className="text-center mb-4">
-              <span style={{ color: "blue" }}>Hackathon</span>{" "}
-              <span style={{ color: "green" }}>Registration</span>
-            </h3>
-
-            <form onSubmit={handleSubmit}>
-              {["name", "email", "password", "confirmPassword"].map((field) => (
-                <div className="floating-label-content mb-4" key={field}>
-                  <div
-                    className={`input-wrapper ${
-                      validity[field] ? "input-valid" : ""
-                    }`}
-                  >
-                    <input
-                      className={`floating-input ${
-                        errors[field]
-                          ? "border-danger"
-                          : validity[field]
-                          ? "border-success"
-                          : "border-primary"
-                      }`}
-                      type={field.includes("password") ? "password" : "text"}
-                      id={field}
-                      placeholder=" "
-                      value={formData[field]}
-                      onChange={handleChange}
-                    />
-                    <label className="floating-label" htmlFor={field}>
-                      {field.charAt(0).toUpperCase() + field.slice(1)}
-                    </label>
-                    {validity[field] && (
-                      <i className="fa fa-check text-success"></i>
-                    )}
-                  </div>
-                  {errors[field] && (
-                    <div className="text-danger">{errors[field]}</div>
-                  )}
-                </div>
-              ))}
-              <div className="text-center justify-content-end">
-                <button
-                  type="submit"
-                  className="btn btn-outline-primary btn-md"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <span
-                        className="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
-                      Registering...
-                    </>
-                  ) : (
-                    "Register"
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+      <div
+        className="register-container d-flex flex-column p-4 p-md-5 border rounded"
+        style={{ maxWidth: "400px", width: "100%", backgroundColor: "white" }}
+      >
+        <div className="text-center mb-4">
+          <p style={{ fontSize: "18px" }}>
+            <span style={{ color: "red", marginRight: "5px" }}>Register</span>
+            <span style={{ color: "#3D85D8" }}>Here</span>
+          </p>
         </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="floating-label-content mb-3">
+            <div
+              className={`input-wrapper ${validity.name ? "input-valid" : ""}`}
+            >
+              <input
+                className="floating-input form-control"
+                type="text"
+                id="name"
+                placeholder=" "
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+              <label className="floating-label" htmlFor="name">
+                Name
+              </label>
+              {validity.name && (
+                <i className="fa fa-check text-success validation-icon"></i>
+              )}
+            </div>
+            {errors.name && (
+              <div className="text-danger mt-1" style={{ fontSize: "12px" }}>
+                {errors.name}
+              </div>
+            )}
+          </div>
+
+          <div className="floating-label-content mb-3">
+            <div
+              className={`input-wrapper ${validity.email ? "input-valid" : ""}`}
+            >
+              <input
+                className="floating-input form-control"
+                type="email"
+                id="email"
+                placeholder=" "
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+              <label className="floating-label" htmlFor="email">
+                Email address
+              </label>
+              {validity.email && (
+                <i className="fa fa-check text-success validation-icon"></i>
+              )}
+            </div>
+            {errors.email && (
+              <div className="text-danger mt-1" style={{ fontSize: "12px" }}>
+                {errors.email}
+              </div>
+            )}
+          </div>
+
+          <div className="floating-label-content mb-3">
+            <div
+              className={`input-wrapper ${
+                validity.password ? "input-valid" : ""
+              }`}
+            >
+              <input
+                className="floating-input form-control"
+                type="password"
+                id="password"
+                placeholder=" "
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+              <label className="floating-label" htmlFor="password">
+                Password
+              </label>
+              {validity.password && (
+                <i className="fa fa-check text-success validation-icon"></i>
+              )}
+            </div>
+            {errors.password && (
+              <div className="text-danger mt-1" style={{ fontSize: "12px" }}>
+                {errors.password}
+              </div>
+            )}
+          </div>
+
+          <div className="floating-label-content mb-3">
+            <div
+              className={`input-wrapper ${
+                validity.confirmPassword ? "input-valid" : ""
+              }`}
+            >
+              <input
+                className="floating-input form-control"
+                type="password"
+                id="confirmPassword"
+                placeholder=" "
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+              />
+              <label className="floating-label" htmlFor="confirmPassword">
+                Confirm Password
+              </label>
+              {validity.confirmPassword && (
+                <i className="fa fa-check text-success validation-icon"></i>
+              )}
+            </div>
+            {errors.confirmPassword && (
+              <div className="text-danger mt-1" style={{ fontSize: "12px" }}>
+                {errors.confirmPassword}
+              </div>
+            )}
+          </div>
+
+          <div className="d-flex justify-content-center">
+            <button
+              type="submit"
+              className="btn btn-outline-danger mb-3 mt-3 d-flex align-items-center"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Registering...
+                </>
+              ) : (
+                "Register"
+              )}
+            </button>
+          </div>
+        </form>
+
+        <p className="text-center mt-3" style={{ color: "black" }}>
+          Already a member? <a href="/login">Login</a>
+        </p>
       </div>
 
       <style>{`
-        .floating-label-content { position: relative; margin-bottom: 20px; }
-        .floating-label { color: #1e4c82; font-size: 13px; position: absolute; left: 15px; top: 50%; transform: translateY(-50%); padding: 0 3px; background: #fff; transition: 0.2s ease all; }
-        .floating-input { font-size: 14px; display: block; width: 100%; height: 40px; padding: 0 20px; background: #fff; color: #323840; border: 1px solid #3D85D8; border-radius: 4px; box-sizing: border-box; }
-        .floating-input:focus, .floating-input:not(:placeholder-shown) { outline: none; }
-        .floating-input:focus ~ .floating-label, .floating-input:not(:placeholder-shown) ~ .floating-label { top: 0px; font-size: 15px; }
-        .floating-input:focus { border-color: #007bff; }
-        .floating-input:valid { border-color: #28a745; }
-        .input-wrapper { position: relative; }
-        .input-wrapper i { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); opacity: 0; transition: opacity 0.2s ease; }
-        .input-valid i { opacity: 1; }
+        .floating-label-content {
+          position: relative;
+        }
+        .floating-label {
+          font-size: 13px;
+          position: absolute;
+          left: 15px;
+          top: 50%;
+          transform: translateY(-50%);
+          padding: 0 4px;
+          background: #fff;
+          transition: 0.2s ease all;
+          color: #3D85D8;
+        }
+        .floating-input {
+          font-size: 14px;
+          display: block;
+          width: 100%;
+          height: 36px;
+          padding: 0 20px;
+          background: #fff;
+          color: black;
+          border: 1px solid #3D85D8;
+          border-radius: 5px;
+          box-sizing: border-box;
+        }
+        .floating-input:focus + .floating-label,
+        .floating-input:not(:placeholder-shown) + .floating-label {
+          top: -2px;
+          left: 10px;
+          font-size: 12px;
+          color: #3D85D8;
+        }
+        .input-wrapper {
+          position: relative;
+        }
+        .validation-icon {
+          position: absolute;
+          top: 50%;
+          right: 10px;
+          transform: translateY(-50%);
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+        .input-valid .validation-icon {
+          opacity: 1;
+        }
+        a {
+          text-decoration: none;
+          font-weight: bold;
+          border-bottom: 1px solid transparent; 
+          transition: border-bottom 0.3s ease-in-out, color 0.3s ease-in-out;
+        }
+        a:hover {
+          color: blue;
+          border-bottom: 1px solid red; 
+        }
       `}</style>
     </div>
   );

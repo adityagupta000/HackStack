@@ -768,19 +768,21 @@ const EventManagement = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">₹{event.price}</td>
-                  <td className="px-6 py-4 space-x-2">
-                    <button
-                      onClick={() => handleEdit(event)}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(event._id)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
-                    >
-                      Delete
-                    </button>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-wrap sm:flex-nowrap gap-2">
+                      <button
+                        onClick={() => handleEdit(event)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors w-full sm:w-auto"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(event._id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors w-full sm:w-auto"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

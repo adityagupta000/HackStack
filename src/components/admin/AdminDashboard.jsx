@@ -159,9 +159,9 @@ const AdminDashboard = () => {
                     data={domainData}
                     dataKey="value"
                     nameKey="name"
-                    cx="50%"
+                    cx="80%"
                     cy="50%"
-                    outerRadius={80}
+                    outerRadius={110}
                     fill="#8884d8"
                     labelLine={false}
                     label={renderCustomizedLabel}

@@ -37,7 +37,7 @@ const Home = () => (
         <div className="text-center">
           <h3 className="display-text fw-bold">
             <TypingEffect
-              text="Welcome To Hack-a-Fest"
+              text="Welcome To HackStack"
               style={{ color: "#FFEFD5" }}
               speed={150}
             />
