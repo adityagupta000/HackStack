@@ -1,94 +1,88 @@
+a {
+  text-decoration: none;
+}
+.footer,
+h5 {
+  color: #dc3545;
+}
+.footer {
+  width: 100%;
+  border-top: 1px solid white;
+}
 
-  a{
-    text-decoration: none;
-  }
-  .footer, h5 {
-    color: #dc3545; 
-  }
-  .footer {
-    width: 100%;
-    border-top: 1px solid white; 
-  }
-  
-  .form-floating {
-    position: relative;
-    margin-bottom: 1.5rem;
-  }
-  
-  .form-floating > input,
-  .form-floating > select {
-    font-size: 1rem;
-    padding: 1rem;
-    background: #fff;
-    color: #323840;
-    border: 1px solid #3D85D8;
-    border-radius: 4px;
-    width: 100%;
-    height: auto;
-  }
-  
-  .form-floating > label {
-    position: absolute;
-    top: 0;
-    left: 0;
-    padding: 0 0.75rem;
-    font-size: 1rem;
-    color: #1e4c82;
-    background: #fff;
-    pointer-events: none;
-    transition: 0.2s ease all;
-  }
-  
-  .form-floating > input:focus,
-  .form-floating > select:focus {
-    outline: none;
-  }
-  
-  .form-floating > input:not(:placeholder-shown) ~ label,
-  .form-floating > select:not([value=""]) ~ label {
-    top: -1rem;
-    font-size: 0.75rem;
-    color: #1e4c82;
-  }
-  
-  .form-floating > select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-  }
-  
-  .form-floating > select::-ms-expand {
-    display: none;
-  }
+.form-floating {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
 
-  .shining-text {
-    position: relative;
-    display: inline-block;
-    font-weight: bold;
-    font-size: 1.1em;
-    text-decoration: none;
-    color: rgb(0, 0, 0);
-    text-transform: uppercase;
-    overflow: hidden;  /* Ensure the shine doesn't overflow */
+.form-floating > input,
+.form-floating > select {
+  font-size: 1rem;
+  padding: 1rem;
+  background: #fff;
+  color: #323840;
+  border: 1px solid #3d85d8;
+  border-radius: 4px;
+  width: 100%;
+  height: auto;
+}
+
+.form-floating > label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 0.75rem;
+  font-size: 1rem;
+  color: #1e4c82;
+  background: #fff;
+  pointer-events: none;
+  transition: 0.2s ease all;
+}
+
+.form-floating > input:focus,
+.form-floating > select:focus {
+  outline: none;
+}
+
+.form-floating > input:not(:placeholder-shown) ~ label,
+.form-floating > select:not([value=""]) ~ label {
+  top: -1rem;
+  font-size: 0.75rem;
+  color: #1e4c82;
+}
+
+.form-floating > select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.form-floating > select::-ms-expand {
+  display: none;
+}
+
+.shining-text {
+  position: relative;
+  display: inline-block;
+  font-weight: bold;
+  font-size: 1.1em;
+  text-decoration: none;
+}
+
+.shining-text::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
   }
-  
-  .shining-text::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;  /* Start position off-screen */
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgb(0, 255, 247) 50%, rgba(232, 225, 225, 0) 100%);
-    animation: shine 2s linear infinite; 
+  100% {
+    left: 100%;
   }
-  
-  @keyframes shine {
-    0% {
-      left: -100%;
-    }
-    100% {
-      left: 100%; 
-    }
-  }
-  
+}

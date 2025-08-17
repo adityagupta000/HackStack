@@ -63,7 +63,6 @@ const EventList = () => {
       </div>
 
       {/* Events Grid */}
-      {/* Events Grid */}
       <div className="events-section">
         {loading ? (
           <p className="status-message">Loading events...</p>
@@ -87,9 +86,12 @@ const EventList = () => {
                   link={event.link}
                   ruleBook={
                     event.ruleBook
-                      ? `http://localhost:5000${event.ruleBook.replace("//", "/")}`
+                      ? `http://localhost:5000${event.ruleBook.replace(
+                          "//",
+                          "/"
+                        )}`
                       : event.ruleBook
-                  } 
+                  }
                 />
               </div>
             ))}
@@ -141,6 +143,7 @@ const EventList = () => {
             margin-bottom: 2rem;
             overflow-x: auto;
             padding: 1rem 0;
+            scrollbar-width: none;
           }
 
           .category-scroll {

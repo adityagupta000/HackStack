@@ -11,7 +11,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from "recharts";
 
 const COLORS = [
@@ -31,6 +30,7 @@ const AdminDashboard = () => {
     registrationCount: 0,
     feedbackCount: 0,
     domainBreakdown: {},
+    eventRegistrationStats: [],
   });
 
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ const AdminDashboard = () => {
     })
   );
 
-  // Custom label renderer for pie chart to prevent overlap
+  // Custom label for pie slices
   const renderCustomizedLabel = ({
     cx,
     cy,
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
     percent,
   }) => {
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -82,10 +82,10 @@ const AdminDashboard = () => {
         x={x}
         y={y}
         fill="white"
-        textAnchor={x > cx ? "start" : "end"}
+        textAnchor="middle"
         dominantBaseline="central"
-        fontSize="12"
-        fontWeight="bold"
+        fontSize="11"
+        fontWeight="600"
       >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
@@ -95,13 +95,13 @@ const AdminDashboard = () => {
   if (loading) return <div className="text-center mt-10">Loading...</div>;
 
   return (
-    <div className="p-4 sm:p-6 max-w-full mx-auto">
-      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-9xl mx-auto">
+      <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6">
         Admin Dashboard
       </h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-10">
         <Card
           title="Total Users"
           value={data.userCount}
@@ -131,15 +131,17 @@ const AdminDashboard = () => {
           <h2 className="text-base sm:text-lg font-semibold mb-4">
             Overall Summary
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="value" fill="#4F46E5" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-64 sm:h-72 md:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Pie Chart */}
@@ -152,36 +154,34 @@ const AdminDashboard = () => {
               No event category data available.
             </p>
           ) : (
-            <div className="space-y-4">
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={domainData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="80%"
-                    cy="50%"
-                    outerRadius={110}
-                    fill="#8884d8"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
-                  >
-                    {domainData.map((_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value, name) => [value, name]}
-                    labelStyle={{ color: "#374151" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="flex flex-col items-center">
+              <div className="h-64 sm:h-72 md:h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={domainData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius="80%"
+                      labelLine={false}
+                      label={renderCustomizedLabel}
+                    >
+                      {domainData.map((_, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
 
               {/* Custom Legend */}
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex flex-wrap gap-3 justify-center mt-4">
                 {domainData.map((entry, index) => (
                   <div key={entry.name} className="flex items-center gap-2">
                     <div
@@ -198,30 +198,32 @@ const AdminDashboard = () => {
           )}
         </div>
       </div>
-      {/* Full-width: Registrations per Event Chart */}
+
+      {/* Full-width: Registrations per Event */}
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mt-6 w-full">
         <h2 className="text-base sm:text-lg font-semibold mb-4">
           Registrations per Event
         </h2>
-
         {data.eventRegistrationStats &&
         data.eventRegistrationStats.length > 0 ? (
-          <ResponsiveContainer width="100%" height={500}>
-            <BarChart data={data.eventRegistrationStats}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="title"
-                interval={0}
-                angle={-30}
-                textAnchor="end"
-                height={80}
-                tick={{ fontSize: 11 }}
-              />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#10B981" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-80 sm:h-[28rem]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.eventRegistrationStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="title"
+                  interval={0}
+                  angle={-25}
+                  textAnchor="end"
+                  height={70}
+                  tick={{ fontSize: 11 }}
+                />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="count" fill="#10B981" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
           <p className="text-gray-500 text-center py-8">
             No registration data available.
@@ -235,7 +237,9 @@ const AdminDashboard = () => {
 const Card = ({ title, value, color }) => (
   <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 text-center">
     <h2 className="text-xs sm:text-sm text-gray-500 mb-2">{title}</h2>
-    <p className={`text-2xl sm:text-3xl font-bold ${color}`}>{value}</p>
+    <p className={`text-xl sm:text-2xl md:text-3xl font-bold ${color}`}>
+      {value}
+    </p>
   </div>
 );
 
