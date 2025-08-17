@@ -1,70 +1,132 @@
-# Getting Started with Create React App
+# Event Management System - HackStack
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A comprehensive event management platform for organizing hackathons and technical events with seamless user experience.
 
-## Available Scripts
+## 🖼️ Application Screenshots
 
-In the project directory, you can run:
+### 🏠 Main Interface
 
-### `npm start`
+#### Welcome & Countdown
+- Animated welcome message with typing effect
+![Countdown Timer](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Home.png)
+- Live countdown timer and smooth transitions
+![Countdown Timer](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Countdown.png)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+#### Event Management
+- Complete event listings with status indicators
+![Event List](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Event_list.png)
+- Detailed event view with registration integration
+![Event Details](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Detail_event.png)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 🔐 Authentication
 
-### `npm test`
+#### Login & Registration
+- Clean login interface with floating labels
+![Login Page](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/login.png)
+- Registration with real-time validation
+![Registration Page](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Register.png)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+#### Password Recovery
+- Email-based recovery system
+![Forgot Password](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Forgot_password.png)
+- Secure token-based password reset
+![Reset Password](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Reset_Password.png)
 
-### `npm run build`
+### 👤 User Dashboard
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+#### Personal Dashboard
+![User Dashboard](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/User_dashboard.png)
+- Registration statistics and upcoming events
+- Event status tracking and receipt downloads
+- Quick actions and achievement badges
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+#### Events & Calendar
+- Interactive calendar with color-coded events
+![User Calendar](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/User_calender.png)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+#### User Feedback
+![User Feedback](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/User_Feedback.png)
+- Star rating and comment system
+- Event review and suggestion submission
 
-### `npm run eject`
+### 🔧 Admin Panel
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+#### Admin Dashboard & Statistics
+![Admin Statistics](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Admin_Stats.png)
+- Real-time analytics with charts and metrics
+- Performance indicators and trend analysis
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+#### User Management
+![Admin User Management](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Admin_User.png)
+- User management with role assignment
+- Bulk operations and user activity tracking
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+#### Event Creation
+![Add Event](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Add_Event.png)
+- Event creation wizard with rich editor
+- Image upload and category selection
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+#### Feedback Management
+![Admin Feedback](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Feedback.png)
+- Feedback analysis with sentiment tracking
+- Response management and moderation
 
-## Learn More
+## ✨ Key Features
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### For Participants
+- **Event Discovery**: Browse events by category with advanced search
+- **One-Click Registration**: Instant registration with email confirmation
+- **Digital Receipts**: PDF receipts with QR codes for verification
+- **Personal Dashboard**: Track registrations and manage participation
+- **Calendar Integration**: Sync with personal calendar apps
+- **Feedback System**: Rate and review attended events
+- **Mobile Access**: Full functionality on all devices
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### For Administrators
+- **Analytics Dashboard**: Real-time statistics and performance metrics
+- **User Management**: Complete user control with role assignment
+- **Event Creation**: Rich editor with media upload capabilities
+- **Registration Tracking**: Monitor participants with detailed insights
+- **Feedback Analysis**: Review and analyze user feedback
+- **File Management**: Upload images, documents, and rule books
+- **Communication Tools**: Send announcements to participants
 
-### Code Splitting
+### Technical Features
+- **Responsive Design**: Optimized for desktop, tablet, and mobile
+- **Security**: JWT authentication with password encryption
+- **Performance**: Fast loading with smooth interactions
+- **File Upload**: Support for images and PDF documents
+- **QR Integration**: Secure verification system
+- **Email System**: Automated notifications and confirmations
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## 🛠️ Technology Stack
 
-### Analyzing the Bundle Size
+**Frontend**: React.js, Bootstrap 5, Tailwind CSS, Axios, React Router
+**Backend**: Node.js, Express.js, MongoDB, JWT, bcryptjs, Multer
+**Features**: PDF generation, QR codes, Email notifications, File uploads
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## 🚀 Getting Started
 
-### Making a Progressive Web App
+### Installation
+1. Clone repository and install dependencies
+2. Set up MongoDB database
+3. Configure environment variables
+4. Start backend server (Port 5000)
+5. Start frontend application (Port 3000)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 📊 API Endpoints
 
-### Advanced Configuration
+**Authentication**: Register, Login, Password Reset, Token Refresh
+**Events**: CRUD operations, Category filtering, File uploads
+**Registrations**: Event registration, Receipt generation, User tracking
+**Admin**: Statistics, User management, Event oversight
+**Verification**: QR code validation system
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## 🔐 Security Features
 
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- JWT Authentication with secure token management
+- Password hashing with bcrypt encryption
+- Rate limiting for API protection
+- Input validation and sanitization
+- CORS configuration for secure requests
+- File upload restrictions and validation
