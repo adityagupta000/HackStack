@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import toast, { Toaster } from "react-hot-toast";
-import { useAuth } from "../context/AuthContext";
 import { Card, Button, Modal, Form } from "react-bootstrap";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -14,7 +13,6 @@ const UserDashboard = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
-  const { accessToken } = useAuth();
 
   const formatDate = (date) => {
     const d = new Date(date);
@@ -22,6 +20,33 @@ const UserDashboard = () => {
     const offset = d.getTimezoneOffset();
     const localDate = new Date(d.getTime() - offset * 60 * 1000);
     return localDate.toISOString().split("T")[0];
+  };
+
+  // Enhanced logout function that clears both localStorage and cookies
+  const handleLogout = async () => {
+    try {
+      // Make API call to logout endpoint
+      await axiosInstance.post("/auth/logout", null, {
+        withCredentials: true,
+      });
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      // Clear localStorage
+      localStorage.clear();
+
+      // Clear all cookies by setting them to expire in the past
+      document.cookie.split(";").forEach((c) => {
+        const eqPos = c.indexOf("=");
+        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        // Also clear with domain specification for broader compatibility
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+      });
+
+      // Redirect to login
+      window.location.href = "/login";
+    }
   };
 
   useEffect(() => {
@@ -172,18 +197,7 @@ const UserDashboard = () => {
             View Calendar
           </button>
           <button
-            onClick={async () => {
-              try {
-                await axiosInstance.post("/auth/logout", null, {
-                  withCredentials: true,
-                });
-              } catch (err) {
-                console.error("Logout failed:", err);
-              } finally {
-                localStorage.clear();
-                window.location.href = "/login";
-              }
-            }}
+            onClick={handleLogout}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm"
           >
             Logout
@@ -204,7 +218,7 @@ const UserDashboard = () => {
         </div>
 
         <div className="bg-blue-100 border-l-4 border-red-500 text-red-700 p-4 rounded h-28 flex flex-col justify-between">
-          <p className="text-sm">Today’s Events</p>
+          <p className="text-sm">Today's Events</p>
           <h3 className="text-lg font-semibold">{todayEvents.length}</h3>
         </div>
 

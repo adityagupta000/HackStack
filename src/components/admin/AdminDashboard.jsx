@@ -92,16 +92,16 @@ const AdminDashboard = () => {
     );
   };
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
+  if (loading) return <div className="text-center mt-8">Loading...</div>;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-9xl mx-auto">
-      <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6">
+    <div className="p-3 md:p-4 max-w-full mx-auto">
+      <h1 className="text-lg md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4">
         Admin Dashboard
       </h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
         <Card
           title="Total Users"
           value={data.userCount}
@@ -125,46 +125,55 @@ const AdminDashboard = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
         {/* Bar Chart */}
-        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold mb-4">
+        <div className="bg-white rounded-lg shadow-sm border p-3 md:p-4">
+          <h2 className="text-sm md:text-base font-semibold mb-3">
             Overall Summary
           </h2>
-          <div className="h-64 sm:h-72 md:h-80">
+          <div
+            className="h-48 md:h-64 lg:h-72"
+            style={{ minHeight: "200px", width: "100%" }}
+          >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
+              <BarChart
+                data={chartData}
+                margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" fill="#4F46E5" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Pie Chart */}
-        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold mb-4">
+        <div className="bg-white rounded-lg shadow-sm border p-3 md:p-4">
+          <h2 className="text-sm md:text-base font-semibold mb-3">
             Events by Category
           </h2>
           {domainData.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
+            <p className="text-gray-500 text-center py-8 text-sm">
               No event category data available.
             </p>
           ) : (
             <div className="flex flex-col items-center">
-              <div className="h-64 sm:h-72 md:h-80 w-full">
+              <div
+                className="h-48 md:h-64 lg:h-72 w-full"
+                style={{ minHeight: "200px", width: "100%" }}
+              >
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                     <Pie
                       data={domainData}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius="80%"
+                      outerRadius="75%"
                       labelLine={false}
                       label={renderCustomizedLabel}
                     >
@@ -181,14 +190,14 @@ const AdminDashboard = () => {
               </div>
 
               {/* Custom Legend */}
-              <div className="flex flex-wrap gap-3 justify-center mt-4">
+              <div className="flex flex-wrap gap-2 justify-center mt-2">
                 {domainData.map((entry, index) => (
-                  <div key={entry.name} className="flex items-center gap-2">
+                  <div key={entry.name} className="flex items-center gap-1">
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="w-2 h-2 rounded-full"
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     />
-                    <span className="text-sm text-gray-600">
+                    <span className="text-xs text-gray-600">
                       {entry.name} ({entry.value})
                     </span>
                   </div>
@@ -200,32 +209,38 @@ const AdminDashboard = () => {
       </div>
 
       {/* Full-width: Registrations per Event */}
-      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mt-6 w-full">
-        <h2 className="text-base sm:text-lg font-semibold mb-4">
+      <div className="bg-white rounded-lg shadow-sm border p-3 md:p-4">
+        <h2 className="text-sm md:text-base font-semibold mb-3">
           Registrations per Event
         </h2>
         {data.eventRegistrationStats &&
         data.eventRegistrationStats.length > 0 ? (
-          <div className="h-80 sm:h-[28rem]">
+          <div
+            className="h-64 md:h-80 lg:h-96"
+            style={{ minHeight: "250px", width: "100%" }}
+          >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.eventRegistrationStats}>
+              <BarChart
+                data={data.eventRegistrationStats}
+                margin={{ top: 5, right: 5, left: 5, bottom: 60 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="title"
                   interval={0}
                   angle={-25}
                   textAnchor="end"
-                  height={70}
-                  tick={{ fontSize: 11 }}
+                  height={60}
+                  tick={{ fontSize: 9 }}
                 />
-                <YAxis allowDecimals={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#10B981" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="count" fill="#10B981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-gray-500 text-center py-8">
+          <p className="text-gray-500 text-center py-8 text-sm">
             No registration data available.
           </p>
         )}
@@ -235,9 +250,9 @@ const AdminDashboard = () => {
 };
 
 const Card = ({ title, value, color }) => (
-  <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 text-center">
-    <h2 className="text-xs sm:text-sm text-gray-500 mb-2">{title}</h2>
-    <p className={`text-xl sm:text-2xl md:text-3xl font-bold ${color}`}>
+  <div className="bg-white rounded-lg shadow-sm border p-3 text-center">
+    <h2 className="text-xs text-gray-500 mb-1">{title}</h2>
+    <p className={`text-lg md:text-xl lg:text-2xl font-bold ${color}`}>
       {value}
     </p>
   </div>

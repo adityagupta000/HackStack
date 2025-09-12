@@ -7,12 +7,14 @@ import {
   Calendar,
   FileText,
   MessageSquare,
+  LogOut,
 } from "lucide-react";
 import AdminDashboard from "./admin/AdminDashboard";
 import UserManagement from "./admin/UserManagement";
 import EventManagement from "./admin/EventManagement";
 import RegistrationManagement from "./admin/RegistrationManagement";
 import FeedbackReview from "./admin/FeedbackReview";
+import axiosInstance from "../utils/axiosInstance";
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -25,6 +27,33 @@ const AdminPanel = () => {
     { key: "registrations", label: "Registrations", icon: FileText },
     { key: "feedback", label: "Feedback", icon: MessageSquare },
   ];
+
+  // Logout function to clear both localStorage and cookies
+  const handleLogout = async () => {
+    try {
+      // Make API call to logout endpoint
+      await axiosInstance.post("/auth/logout", null, {
+        withCredentials: true,
+      });
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      // Clear localStorage
+      localStorage.clear();
+
+      // Clear all cookies by setting them to expire in the past
+      document.cookie.split(";").forEach((c) => {
+        const eqPos = c.indexOf("=");
+        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        // Also clear with domain specification for broader compatibility
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+      });
+
+      // Redirect to login
+      window.location.href = "/login";
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -49,12 +78,21 @@ const AdminPanel = () => {
   };
 
   return (
-    <div className="min-h-screen  bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
       {/* Desktop Layout */}
-      <div className="hidden lg:flex  lg:flex-col">
+      <div className="hidden lg:flex lg:flex-col">
         {/* Desktop Header */}
         <header className="bg-blue-700 text-white px-6 py-3 shadow-md">
-          <h1 className="text-xl font-semibold">Admin Panel</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold">Admin Panel</h1>
+            <button
+              onClick={handleLogout}
+              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+            >
+              <LogOut size={18} className="mr-2" />
+              Logout
+            </button>
+          </div>
         </header>
 
         {/* Desktop Navbar */}
@@ -84,9 +122,7 @@ const AdminPanel = () => {
         </nav>
 
         {/* Desktop Main Content */}
-        <main className="flex-1 p-6  overflow-y-auto">
-          {renderTabContent()}
-        </main>
+        <main className="flex-1 p-6 overflow-y-auto">{renderTabContent()}</main>
       </div>
 
       <div className="lg:hidden">
@@ -100,7 +136,13 @@ const AdminPanel = () => {
               <Menu size={20} />
             </button>
             <h1 className="text-lg font-semibold">Admin Panel</h1>
-            <div className="w-8"></div> {/* Spacer for centering */}
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-md hover:bg-red-600 bg-red-500 transition-colors"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </header>
 
@@ -144,6 +186,15 @@ const AdminPanel = () => {
                 </button>
               );
             })}
+
+            {/* Mobile Logout Button in Sidebar */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-3 py-3 mt-4 text-left rounded-lg transition-colors duration-200 text-red-600 hover:bg-red-50 border-t border-gray-200"
+            >
+              <LogOut size={18} className="mr-3" />
+              <span className="font-medium">Logout</span>
+            </button>
           </nav>
         </div>
 
