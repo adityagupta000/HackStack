@@ -13,11 +13,22 @@ function HackathonRegister() {
   });
 
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState(""); // "success" or "error"
+  const [messageType, setMessageType] = useState("");
   const [showMessage, setShowMessage] = useState(false);
   const [errors, setErrors] = useState({});
   const [validity, setValidity] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPasswordRequirements, setShowPasswordRequirements] =
+    useState(false);
+
+  // Password requirements state
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    minLength: false,
+    uppercase: false,
+    number: false,
+    specialChar: false,
+  });
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,16 +45,30 @@ function HackathonRegister() {
     setErrors((prevErrors) => ({ ...prevErrors, [id]: "" }));
   };
 
+  // Check password requirements in real-time
+  useEffect(() => {
+    const password = formData.password;
+
+    setPasswordRequirements({
+      minLength: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      number: /\d/.test(password),
+      specialChar: /[@$!%*#?&]/.test(password),
+    });
+  }, [formData.password]);
+
   useEffect(() => {
     const newValidity = {};
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    const passwordRegex =
+      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d#@$!%*?&]{8,}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     newValidity.name = formData.name.trim() !== "";
     newValidity.email = emailRegex.test(formData.email);
     newValidity.password = passwordRegex.test(formData.password);
     newValidity.confirmPassword =
-      formData.password === formData.confirmPassword;
+      formData.password === formData.confirmPassword &&
+      formData.confirmPassword !== "";
 
     setValidity(newValidity);
   }, [formData]);
@@ -141,6 +166,7 @@ function HackathonRegister() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Name Field */}
           <div className="floating-label-content mb-3">
             <div
               className={`input-wrapper ${validity.name ? "input-valid" : ""}`}
@@ -168,6 +194,7 @@ function HackathonRegister() {
             )}
           </div>
 
+          {/* Email Field */}
           <div className="floating-label-content mb-3">
             <div
               className={`input-wrapper ${validity.email ? "input-valid" : ""}`}
@@ -195,6 +222,7 @@ function HackathonRegister() {
             )}
           </div>
 
+          {/* Password Field with Requirements */}
           <div className="floating-label-content mb-3">
             <div
               className={`input-wrapper ${
@@ -208,6 +236,8 @@ function HackathonRegister() {
                 placeholder=" "
                 value={formData.password}
                 onChange={handleChange}
+                onFocus={() => setShowPasswordRequirements(true)}
+                onBlur={() => setShowPasswordRequirements(false)}
                 required
               />
               <label className="floating-label" htmlFor="password">
@@ -217,6 +247,131 @@ function HackathonRegister() {
                 <i className="fa fa-check text-success validation-icon"></i>
               )}
             </div>
+
+            {/* Password Requirements Checklist */}
+            {(showPasswordRequirements || formData.password) && (
+              <div className="password-requirements mt-2 p-2">
+                <div
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "bold",
+                    marginBottom: "5px",
+                    color: "#495057",
+                  }}
+                >
+                  Password must contain:
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "3px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: "11px",
+                    }}
+                  >
+                    <i
+                      className={`fa ${
+                        passwordRequirements.minLength
+                          ? "fa-check-circle text-success"
+                          : "fa-times-circle text-danger"
+                      }`}
+                      style={{ marginRight: "6px", fontSize: "12px" }}
+                    ></i>
+                    <span
+                      style={{
+                        color: passwordRequirements.minLength
+                          ? "#28a745"
+                          : "#dc3545",
+                      }}
+                    >
+                      At least 8 characters
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: "11px",
+                    }}
+                  >
+                    <i
+                      className={`fa ${
+                        passwordRequirements.uppercase
+                          ? "fa-check-circle text-success"
+                          : "fa-times-circle text-danger"
+                      }`}
+                      style={{ marginRight: "6px", fontSize: "12px" }}
+                    ></i>
+                    <span
+                      style={{
+                        color: passwordRequirements.uppercase
+                          ? "#28a745"
+                          : "#dc3545",
+                      }}
+                    >
+                      One uppercase letter (A-Z)
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: "11px",
+                    }}
+                  >
+                    <i
+                      className={`fa ${
+                        passwordRequirements.number
+                          ? "fa-check-circle text-success"
+                          : "fa-times-circle text-danger"
+                      }`}
+                      style={{ marginRight: "6px", fontSize: "12px" }}
+                    ></i>
+                    <span
+                      style={{
+                        color: passwordRequirements.number
+                          ? "#28a745"
+                          : "#dc3545",
+                      }}
+                    >
+                      One number (0-9)
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: "11px",
+                    }}
+                  >
+                    <i
+                      className={`fa ${
+                        passwordRequirements.specialChar
+                          ? "fa-check-circle text-success"
+                          : "fa-times-circle text-danger"
+                      }`}
+                      style={{ marginRight: "6px", fontSize: "12px" }}
+                    ></i>
+                    <span
+                      style={{
+                        color: passwordRequirements.specialChar
+                          ? "#28a745"
+                          : "#dc3545",
+                      }}
+                    >
+                      One special character (@$!%*?&)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {errors.password && (
               <div className="text-danger mt-1" style={{ fontSize: "12px" }}>
                 {errors.password}
@@ -224,6 +379,7 @@ function HackathonRegister() {
             )}
           </div>
 
+          {/* Confirm Password Field */}
           <div className="floating-label-content mb-3">
             <div
               className={`input-wrapper ${
@@ -246,6 +402,15 @@ function HackathonRegister() {
                 <i className="fa fa-check text-success validation-icon"></i>
               )}
             </div>
+            {formData.confirmPassword && !validity.confirmPassword && (
+              <div className="text-danger mt-1" style={{ fontSize: "12px" }}>
+                <i
+                  className="fa fa-exclamation-circle"
+                  style={{ marginRight: "4px" }}
+                ></i>
+                Passwords do not match
+              </div>
+            )}
             {errors.confirmPassword && (
               <div className="text-danger mt-1" style={{ fontSize: "12px" }}>
                 {errors.confirmPassword}

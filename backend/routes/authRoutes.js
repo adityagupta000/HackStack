@@ -27,7 +27,7 @@ router.post(
       "Password must be at least 8 characters long and include an uppercase letter, a number, and a special character."
     )
       .isLength({ min: 8 })
-      .matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/),
+      .matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[@#$!%*?&])[A-Za-z\d@$#!%*?&]{8,}$/),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -132,7 +132,7 @@ router.post(
       "Password must be at least 8 characters long and include an uppercase letter, a number, and a special character."
     )
       .isLength({ min: 8 })
-      .matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/),
+      .matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[@#$!%*?&])[A-Za-z\d@#$!%*?&]{8,}$/),
   ],
   resetPassword
 );
