@@ -81,6 +81,7 @@ if (!process.env.COOKIE_SECRET) {
   console.error("FATAL: COOKIE_SECRET environment variable is not set");
   process.exit(1);
 }
+
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 const csrfProtection = csrf({
@@ -91,8 +92,21 @@ const csrfProtection = csrf({
   },
 });
 
-app.get("/api/csrf-token", (req, res) => {
+app.get("/api/csrf-token", csrfProtection, (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
+});
+
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" ||
+    req.method === "HEAD" ||
+    req.method === "OPTIONS" ||
+    req.path === "/health" ||
+    req.path.startsWith("/uploads/")
+  ) {
+    return next();
+  }
+  csrfProtection(req, res, next);
 });
 
 // FIXED: Enhanced Security Middleware
@@ -121,8 +135,18 @@ app.use(
     xssFilter: true,
     noSniff: true,
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    permittedCrossDomainPolicies: { permittedPolicies: "none" },
   })
 );
+
+// Add Permissions-Policy header
+app.use((req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), microphone=(), camera=(), payment=()"
+  );
+  next();
+});
 
 const requestIdMiddleware = require("./middleware/requestId");
 app.use(requestIdMiddleware);
@@ -237,23 +261,21 @@ app.use("*", (req, res) => {
 // Error handling middleware (must be last)
 app.use(errorMiddleware);
 
-// Start Server
-// const server = app.listen(port, () => {
-//   logger.info("Server started successfully", {
-//     port,
-//     environment: process.env.NODE_ENV || "development",
-//     frontendUrl:
-//       process.env.NODE_ENV !== "production"
-//         ? process.env.FRONTEND_URL || "http://localhost:3000"
-//         : undefined,
-//   });
-// });
+const server = app.listen(port, () => {
+  logger.info("Server started successfully", {
+    port,
+    environment: process.env.NODE_ENV || "development",
+    frontendUrl:
+      process.env.NODE_ENV !== "production"
+        ? process.env.FRONTEND_URL || "http://localhost:3000"
+        : undefined,
+  });
+});
 
-logger.info(`✅ Server started on port ${port} in ${process.env.NODE_ENV} mode`);
+logger.info(`Server started on port ${port} in ${process.env.NODE_ENV} mode`);
 if (process.env.NODE_ENV !== "production") {
   logger.info(`Frontend allowed: ${process.env.FRONTEND_URL}`);
 }
-
 
 // Graceful shutdown
 let shuttingDown = false;

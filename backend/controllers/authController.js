@@ -26,14 +26,29 @@ const hashToken = (token) => {
 };
 
 const compareToken = (token, hashedToken) => {
+  // Validate inputs first
+  if (
+    !token ||
+    !hashedToken ||
+    typeof token !== "string" ||
+    typeof hashedToken !== "string"
+  ) {
+    return false;
+  }
+
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  // Use timing-safe comparison
+
+  if (tokenHash.length !== 64 || hashedToken.length !== 64) {
+    return false;
+  }
+
   try {
     return crypto.timingSafeEqual(
       Buffer.from(tokenHash, "hex"),
       Buffer.from(hashedToken, "hex")
     );
   } catch (err) {
+    logger.error("Token comparison error", { error: err.message });
     return false;
   }
 };
@@ -325,13 +340,12 @@ exports.refreshToken = async (req, res) => {
         currentVersion: user.tokenVersion,
         requestId: req.id,
       });
-      // Token has been rotated/invalidated
+
       return res
         .status(HTTP_STATUS.FORBIDDEN)
         .json({ message: "Token has been invalidated. Please login again." });
     }
 
-    // FIXED: Compare hashed refresh tokens using timing-safe comparison
     const isValidToken = compareToken(refreshToken, user.refreshToken);
 
     if (!isValidToken) {
@@ -344,13 +358,31 @@ exports.refreshToken = async (req, res) => {
         .json({ message: ERROR_MESSAGES.INVALID_TOKEN });
     }
 
-    // FIXED: Rotate refresh token
-    user.tokenVersion = (user.tokenVersion || 0) + 1;
-    const newRefreshToken = generateRefreshToken(user._id, user.tokenVersion);
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      {
+        $inc: { tokenVersion: 1 },
+      },
+      {
+        new: true,
+        select: "+tokenVersion",
+      }
+    );
+
+    if (!updatedUser) {
+      return res
+        .status(HTTP_STATUS.FORBIDDEN)
+        .json({ message: ERROR_MESSAGES.USER_NOT_FOUND });
+    }
+
+    const newRefreshToken = generateRefreshToken(
+      updatedUser._id,
+      updatedUser.tokenVersion
+    );
     const hashedNewRefreshToken = hashToken(newRefreshToken);
 
-    user.refreshToken = hashedNewRefreshToken;
-    await user.save();
+    updatedUser.refreshToken = hashedNewRefreshToken;
+    await updatedUser.save();
 
     // Generate new access token
     const newAccessToken = generateAccessToken(
@@ -557,10 +589,11 @@ exports.resetPassword = async (req, res) => {
         .json({ message: "Password is required" });
     }
 
-    // FIXED: Hash the incoming token and search directly
     const hashedToken = hashToken(token);
 
-    // Find user by hashed token (O(1) database lookup instead of O(n) iteration)
+    const startTime = Date.now();
+    const MIN_PROCESSING_TIME = 100;
+
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() },
@@ -568,9 +601,17 @@ exports.resetPassword = async (req, res) => {
       "+password +resetPasswordToken +resetPasswordExpires +refreshToken +tokenVersion"
     );
 
+    const elapsedTime = Date.now() - startTime;
+    if (elapsedTime < MIN_PROCESSING_TIME) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, MIN_PROCESSING_TIME - elapsedTime)
+      );
+    }
+
     if (!user) {
       logger.warn("Invalid or expired reset token attempt", {
         requestId: req.id,
+        // Don't log the token itself
       });
       return res
         .status(HTTP_STATUS.BAD_REQUEST)

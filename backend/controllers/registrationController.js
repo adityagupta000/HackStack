@@ -68,15 +68,8 @@ exports.registerForEvent = async (req, res) => {
 
     await registration.save({ session });
 
-    const response = {
-      message: "Successfully registered!",
-      registrationId: registration._id,
-    };
-
     await session.commitTransaction();
     session.endSession();
-
-    res.status(201).json(response);
 
     logger.info("Event registration successful", {
       userId,
@@ -85,8 +78,10 @@ exports.registerForEvent = async (req, res) => {
       requestId: req.id,
     });
 
-    // Send response after successful commit
-    res.status(201).json(response);
+    res.status(201).json({
+      message: "Successfully registered!",
+      registrationId: registration._id,
+    });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();

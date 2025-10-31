@@ -16,11 +16,11 @@ router.post(
     check("email", "Invalid email").isEmail(),
     check(
       "password",
-      "Password must be at least 12 characters long and include uppercase, lowercase, number, and special character"
+      "Password must be at least 16 characters long and include uppercase, lowercase, number, and special character"
     )
       .isLength({ min: 16 })
       .matches(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$!%*?&])[A-Za-z\d@$#!%*?&]{12,}$/
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$!%*?&])[A-Za-z\d@$#!%*?&]{16,}$/
       ),
   ],
   createAdmin

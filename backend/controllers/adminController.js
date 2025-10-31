@@ -5,6 +5,7 @@ const Event = require("../models/Event");
 const Registration = require("../models/Registration");
 const Feedback = require("../models/Feedback");
 const logger = require("../config/logger");
+const mongoose = require("mongoose");
 const { sanitizeInput, escapeRegex } = require("../utils/sanitize");
 
 // ================== 📊 Admin Dashboard ==================
@@ -129,8 +130,14 @@ exports.getAllUsers = async (req, res) => {
   try {
     let search = req.query.search || "";
 
+    // Validate search length
     if (search.length > 100) {
       return res.status(400).json({ message: "Search query too long" });
+    }
+
+    const dangerousPatterns = /(\.\*){2,}|(\+\*)|(\*\+)|(\{\d{4,}\})/;
+    if (dangerousPatterns.test(search)) {
+      return res.status(400).json({ message: "Invalid search pattern" });
     }
 
     search = escapeRegex(sanitizeInput(search));
@@ -143,6 +150,7 @@ exports.getAllUsers = async (req, res) => {
     })
       .select("-password -refreshToken")
       .limit(100)
+      .maxTimeMS(5000)
       .lean();
 
     res.json(users);
@@ -275,6 +283,12 @@ exports.createEvent = async (req, res) => {
 exports.updateEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({ message: "Invalid event ID" });
+    }
+
     const {
       title,
       date,
@@ -287,14 +301,57 @@ exports.updateEvent = async (req, res) => {
       existingRuleBook,
     } = req.body;
 
+    // Validate and parse registration fields safely
+    let parsedFields = [];
+    try {
+      parsedFields = JSON.parse(registrationFields || "[]");
+
+      // Validate it's an array
+      if (!Array.isArray(parsedFields)) {
+        return res.status(400).json({
+          message: "Registration fields must be an array",
+        });
+      }
+
+      // Limit array size
+      if (parsedFields.length > 20) {
+        return res.status(400).json({
+          message: "Too many registration fields (max 20)",
+        });
+      }
+
+      // Sanitize each field
+      parsedFields = parsedFields
+        .filter((field) => field != null)
+        .map((field) => sanitizeInput(String(field).slice(0, 200)))
+        .filter((field) => field.length > 0);
+    } catch (err) {
+      logger.error("Invalid registration fields JSON", {
+        error: err.message,
+        eventId,
+        requestId: req.id,
+      });
+      return res.status(400).json({
+        message: "Invalid registration fields format",
+      });
+    }
+
+    // Validate price
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice < 0 || parsedPrice > 1000000) {
+      return res.status(400).json({
+        message: "Invalid price value",
+      });
+    }
+
     const updateData = {
-      title,
-      date,
-      time,
-      description,
-      category,
-      price: parseFloat(price),
-      registrationFields: JSON.parse(registrationFields || "[]"),
+      title: sanitizeInput(title),
+      date: sanitizeInput(date),
+      time: sanitizeInput(time),
+      description: sanitizeInput(description),
+      category: sanitizeInput(category),
+      price: parsedPrice,
+      registrationFields: parsedFields,
     };
 
     // 🖼 Image
