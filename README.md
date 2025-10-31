@@ -2,9 +2,9 @@
 
 A comprehensive event management platform for organizing hackathons and technical events with seamless user experience.
 
-## 🖼️ Application Screenshots
+##  Application Screenshots
 
-### 🏠 Main Interface
+###  Main Interface
 
 #### Welcome & Countdown
 - Animated welcome message with typing effect
@@ -18,7 +18,7 @@ A comprehensive event management platform for organizing hackathons and technica
 - Detailed event view with registration integration
 ![Event Details](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Detail_event.png)
 
-### 🔐 Authentication
+###  Authentication
 
 #### Login & Registration
 - Clean login interface with floating labels
@@ -32,7 +32,7 @@ A comprehensive event management platform for organizing hackathons and technica
 - Secure token-based password reset
 ![Reset Password](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Reset_Password.png)
 
-### 👤 User Dashboard
+###  User Dashboard
 
 #### Personal Dashboard
 ![User Dashboard](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/User_dashboard.png)
@@ -49,7 +49,7 @@ A comprehensive event management platform for organizing hackathons and technica
 - Star rating and comment system
 - Event review and suggestion submission
 
-### 🔧 Admin Panel
+###  Admin Panel
 
 #### Admin Dashboard & Statistics
 ![Admin Statistics](https://github.com/adityagupta000/HackStack/blob/53ce21c07ad7d167bc2db5cd5a4af2e3a33cccfd/HackStack/Admin_Stats.png)
@@ -71,7 +71,7 @@ A comprehensive event management platform for organizing hackathons and technica
 - Feedback analysis with sentiment tracking
 - Response management and moderation
 
-## ✨ Key Features
+##  Key Features
 
 ### For Participants
 - **Event Discovery**: Browse events by category with advanced search
@@ -99,13 +99,13 @@ A comprehensive event management platform for organizing hackathons and technica
 - **QR Integration**: Secure verification system
 - **Email System**: Automated notifications and confirmations
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 **Frontend**: React.js, Bootstrap 5, Tailwind CSS, Axios, React Router
 **Backend**: Node.js, Express.js, MongoDB, JWT, bcryptjs, Multer
 **Features**: PDF generation, QR codes, Email notifications, File uploads
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Installation
 1. Clone repository and install dependencies
@@ -114,7 +114,7 @@ A comprehensive event management platform for organizing hackathons and technica
 4. Start backend server (Port 5000)
 5. Start frontend application (Port 3000)
 
-## 📊 API Endpoints
+##  API Endpoints
 
 **Authentication**: Register, Login, Password Reset, Token Refresh
 **Events**: CRUD operations, Category filtering, File uploads
@@ -122,7 +122,7 @@ A comprehensive event management platform for organizing hackathons and technica
 **Admin**: Statistics, User management, Event oversight
 **Verification**: QR code validation system
 
-## 🔐 Security Features
+##  Security Features
 
 - JWT Authentication with secure token management
 - Password hashing with bcrypt encryption
