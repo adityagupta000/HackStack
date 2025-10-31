@@ -7,6 +7,15 @@ const Feedback = require("../models/Feedback");
 const logger = require("../config/logger");
 const mongoose = require("mongoose");
 const { sanitizeInput, escapeRegex } = require("../utils/sanitize");
+const { parseRegistrationFields } = require("../utils/jsonParser");
+
+const getPaginationParams = (req) => {
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+  const skip = (page - 1) * limit;
+
+  return { page, limit, skip };
+};
 
 // ================== 📊 Admin Dashboard ==================
 exports.getAdminStats = async (req, res) => {
@@ -130,17 +139,29 @@ exports.getAllUsers = async (req, res) => {
   try {
     let search = req.query.search || "";
 
-    // Validate search length
-    if (search.length > 100) {
-      return res.status(400).json({ message: "Search query too long" });
+    // Stricter length limit
+    if (search.length > 50) {
+      return res
+        .status(400)
+        .json({ message: "Search query too long (max 50 characters)" });
     }
 
-    const dangerousPatterns = /(\.\*){2,}|(\+\*)|(\*\+)|(\{\d{4,}\})/;
+    // More comprehensive dangerous pattern detection
+    const dangerousPatterns =
+      /(\.\*){2,}|(\+\*)|(\*\+)|(\{\d{3,}\})|(\[.*\].*\[.*\])|(\(.*\|.*\|.*\))/;
     if (dangerousPatterns.test(search)) {
+      logger.warn("Dangerous regex pattern detected", {
+        pattern: search,
+        requestId: req.id,
+      });
       return res.status(400).json({ message: "Invalid search pattern" });
     }
 
     search = escapeRegex(sanitizeInput(search));
+
+    if (search.split("\\").length > 10) {
+      return res.status(400).json({ message: "Search pattern too complex" });
+    }
 
     const users = await User.find({
       $or: [
@@ -150,11 +171,21 @@ exports.getAllUsers = async (req, res) => {
     })
       .select("-password -refreshToken")
       .limit(100)
-      .maxTimeMS(5000)
+      .maxTimeMS(3000)
       .lean();
 
     res.json(users);
   } catch (err) {
+    if (err.name === "ExceededTimeLimit") {
+      logger.warn("Query timeout", {
+        search: req.query.search,
+        requestId: req.id,
+      });
+      return res.status(400).json({
+        message: "Search query too complex or taking too long",
+      });
+    }
+
     logger.error("Failed to fetch users", {
       error: err.message,
       stack: err.stack,
@@ -213,11 +244,30 @@ exports.getAllEvents = async (req, res) => {
   try {
     let query = req.query.search || "";
 
-    if (query.length > 100) {
-      return res.status(400).json({ message: "Search query too long" });
+    // Stricter length limit
+    if (query.length > 50) {
+      return res
+        .status(400)
+        .json({ message: "Search query too long (max 50 characters)" });
+    }
+
+    // More comprehensive dangerous pattern detection
+    const dangerousPatterns =
+      /(\.\*){2,}|(\+\*)|(\*\+)|(\{\d{3,}\})|(\[.*\].*\[.*\])|(\(.*\|.*\|.*\))/;
+    if (dangerousPatterns.test(query)) {
+      logger.warn("Dangerous regex pattern detected", {
+        pattern: query,
+        requestId: req.id,
+      });
+      return res.status(400).json({ message: "Invalid search pattern" });
     }
 
     query = escapeRegex(sanitizeInput(query));
+
+    // Additional check: limit regex complexity
+    if (query.split("\\").length > 10) {
+      return res.status(400).json({ message: "Search pattern too complex" });
+    }
 
     const events = await Event.find({
       $or: [
@@ -227,10 +277,21 @@ exports.getAllEvents = async (req, res) => {
     })
       .sort({ createdAt: -1 })
       .limit(100)
+      .maxTimeMS(3000)
       .lean();
 
     res.json(events);
   } catch (err) {
+    if (err.name === "ExceededTimeLimit") {
+      logger.warn("Query timeout", {
+        search: req.query.search,
+        requestId: req.id,
+      });
+      return res.status(400).json({
+        message: "Search query too complex or taking too long",
+      });
+    }
+
     logger.error("Failed to fetch events", {
       error: err.message,
       stack: err.stack,
@@ -284,7 +345,6 @@ exports.updateEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
 
-    // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return res.status(400).json({ message: "Invalid event ID" });
     }
@@ -301,36 +361,9 @@ exports.updateEvent = async (req, res) => {
       existingRuleBook,
     } = req.body;
 
-    // Validate and parse registration fields safely
-    let parsedFields = [];
-    try {
-      parsedFields = JSON.parse(registrationFields || "[]");
+    const parsedFields = parseRegistrationFields(registrationFields || "[]");
 
-      // Validate it's an array
-      if (!Array.isArray(parsedFields)) {
-        return res.status(400).json({
-          message: "Registration fields must be an array",
-        });
-      }
-
-      // Limit array size
-      if (parsedFields.length > 20) {
-        return res.status(400).json({
-          message: "Too many registration fields (max 20)",
-        });
-      }
-
-      // Sanitize each field
-      parsedFields = parsedFields
-        .filter((field) => field != null)
-        .map((field) => sanitizeInput(String(field).slice(0, 200)))
-        .filter((field) => field.length > 0);
-    } catch (err) {
-      logger.error("Invalid registration fields JSON", {
-        error: err.message,
-        eventId,
-        requestId: req.id,
-      });
+    if (parsedFields === null) {
       return res.status(400).json({
         message: "Invalid registration fields format",
       });
@@ -354,23 +387,37 @@ exports.updateEvent = async (req, res) => {
       registrationFields: parsedFields,
     };
 
-    // 🖼 Image
+    // Handle image
     if (req.files?.image?.[0]) {
       updateData.image = `/uploads/${req.files.image[0].filename}`;
       if (existingImage) {
         const oldPath = path.join("uploads", path.basename(existingImage));
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        if (fs.existsSync(oldPath)) {
+          try {
+            fs.unlinkSync(oldPath);
+          } catch (err) {
+            logger.warn("Failed to delete old image", { error: err.message });
+          }
+        }
       }
     } else if (existingImage) {
       updateData.image = existingImage;
     }
 
-    // 📘 RuleBook
+    // Handle RuleBook
     if (req.files?.ruleBook?.[0]) {
       updateData.ruleBook = `/uploads/${req.files.ruleBook[0].filename}`;
       if (existingRuleBook) {
         const oldPath = path.join("uploads", path.basename(existingRuleBook));
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        if (fs.existsSync(oldPath)) {
+          try {
+            fs.unlinkSync(oldPath);
+          } catch (err) {
+            logger.warn("Failed to delete old rulebook", {
+              error: err.message,
+            });
+          }
+        }
       }
     } else if (existingRuleBook) {
       updateData.ruleBook = existingRuleBook;
@@ -420,27 +467,53 @@ exports.deleteEvent = async (req, res) => {
 exports.getAllRegistrations = async (req, res) => {
   try {
     const search = req.query.search || "";
+    const { page, limit, skip } = getPaginationParams(req);
 
-    // Find all registrations with populated user & event
-    const registrations = await Registration.find()
+    // Build query
+    let query = {};
+
+    if (search) {
+      // Search by registration ID if it looks like an ObjectId
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        query._id = search;
+      }
+    }
+
+    // Get total count
+    const total = await Registration.countDocuments(query);
+
+    // Find registrations with pagination
+    const registrations = await Registration.find(query)
       .populate("user", "name email")
       .populate("event", "title")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
     // If search is present, filter manually on populated fields
-    const filtered = registrations.filter((r) => {
-      const userMatch =
-        r.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        r.user?.email?.toLowerCase().includes(search.toLowerCase());
+    let filtered = registrations;
+    if (search && !mongoose.Types.ObjectId.isValid(search)) {
+      filtered = registrations.filter((r) => {
+        const userMatch =
+          r.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
+          r.user?.email?.toLowerCase().includes(search.toLowerCase());
+        const eventMatch = r.event?.title
+          ?.toLowerCase()
+          .includes(search.toLowerCase());
+        return userMatch || eventMatch;
+      });
+    }
 
-      const eventMatch = r.event?.title
-        ?.toLowerCase()
-        .includes(search.toLowerCase());
-
-      return userMatch || eventMatch;
+    res.json({
+      data: filtered,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     });
-
-    res.json(filtered);
   } catch (err) {
     logger.error("Failed to fetch registrations", {
       error: err.message,

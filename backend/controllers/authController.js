@@ -20,35 +20,72 @@ require("dotenv").config();
 
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
 
-// FIXED: Use SHA256 for token hashing (faster and appropriate for random tokens)
 const hashToken = (token) => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
 
-const compareToken = (token, hashedToken) => {
-  // Validate inputs first
-  if (
-    !token ||
-    !hashedToken ||
-    typeof token !== "string" ||
-    typeof hashedToken !== "string"
-  ) {
-    return false;
-  }
-
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-  if (tokenHash.length !== 64 || hashedToken.length !== 64) {
-    return false;
-  }
-
+const validateFrontendUrl = (url) => {
   try {
+    const parsed = new URL(url);
+
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return false;
+    }
+
+    const allowedDomains = (process.env.ALLOWED_FRONTEND_DOMAINS || "localhost")
+      .split(",")
+      .map((d) => d.trim());
+
+    const isAllowed = allowedDomains.some((domain) => {
+      return (
+        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+      );
+    });
+
+    if (!isAllowed) {
+      logger.warn("Invalid frontend URL attempted", { url });
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    logger.error("URL validation error", { error: err.message, url });
+    return false;
+  }
+};
+
+const compareToken = (token, hashedToken) => {
+  try {
+    // Validate inputs
+    if (
+      !token ||
+      !hashedToken ||
+      typeof token !== "string" ||
+      typeof hashedToken !== "string"
+    ) {
+      crypto.createHash("sha256").update("dummy_token_12345").digest("hex");
+      return false;
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    if (tokenHash.length !== 64 || hashedToken.length !== 64) {
+      const dummy = crypto.createHash("sha256").update("dummy").digest("hex");
+      crypto.timingSafeEqual(
+        Buffer.from(dummy, "hex"),
+        Buffer.from(dummy, "hex")
+      );
+      return false;
+    }
+
     return crypto.timingSafeEqual(
       Buffer.from(tokenHash, "hex"),
       Buffer.from(hashedToken, "hex")
     );
   } catch (err) {
     logger.error("Token comparison error", { error: err.message });
+
+    crypto.createHash("sha256").update("error_dummy").digest("hex");
     return false;
   }
 };
@@ -479,8 +516,15 @@ exports.forgotPassword = async (req, res) => {
         requestId: req.id,
       });
 
-      // FIXED: Use HTTPS in production
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
+      if (!validateFrontendUrl(frontendUrl)) {
+        logger.error("Invalid FRONTEND_URL configuration", { frontendUrl });
+        return res.status(500).json({
+          message: "Server configuration error. Please contact support.",
+        });
+      }
+
       const resetURL = `${frontendUrl}/reset-password/${resetToken}`;
 
       // FIXED: Use environment-based email configuration
@@ -673,7 +717,7 @@ exports.logout = async (req, res) => {
       // FIXED: Still clear cookie even if verification fails
       res.clearCookie("refreshToken", {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: "strict",
         secure: process.env.NODE_ENV === "production",
         path: "/api/auth/refreshToken",
       });

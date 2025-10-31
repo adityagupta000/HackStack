@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const logger = require("../config/logger");
 const mongoSanitize = require("express-mongo-sanitize");
+const { parseRegistrationFields } = require("../utils/jsonParser");
 const { sanitizeInput, validateLength } = require("../utils/sanitize");
 
 // FIXED: Secure path validation
@@ -118,19 +119,12 @@ exports.addEvent = async (req, res) => {
     description = sanitizeInput(description);
     category = sanitizeInput(category);
 
-    // FIXED: Validate and parse registration fields
-    let registrationFields = [];
-    try {
-      registrationFields = JSON.parse(req.body.registrationFields || "[]");
-      if (!Array.isArray(registrationFields)) {
-        throw new Error("Registration fields must be an array");
-      }
-      // Sanitize each field
-      registrationFields = registrationFields
-        .map((field) => sanitizeInput(field))
-        .filter((field) => field && field.length > 0)
-        .slice(0, 20); // Limit to 20 fields max
-    } catch (err) {
+    // Use safe JSON parser
+    const registrationFields = parseRegistrationFields(
+      req.body.registrationFields || "[]"
+    );
+
+    if (registrationFields === null) {
       return res.status(400).json({
         message: "Invalid registration fields format",
       });
@@ -146,7 +140,7 @@ exports.addEvent = async (req, res) => {
       price: parseFloat(price),
       registrationFields,
       ruleBook: null,
-      createdBy: req.user._id, // Track who created the event
+      createdBy: req.user._id,
     });
 
     await newEvent.save();

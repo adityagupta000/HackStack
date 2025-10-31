@@ -48,23 +48,22 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // FIXED: Only allow requests from whitelisted origins in production
     if (process.env.NODE_ENV === "production") {
       if (!origin) {
+        logger.warn("CORS rejection - No origin header");
         return callback(new Error("Not allowed by CORS - No origin header"));
       }
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        logger.warn("CORS rejection", { origin, path: req?.path });
+        logger.warn("CORS rejection", { origin });
         callback(new Error("Not allowed by CORS"));
       }
     } else {
-      // Development: allow requests with no origin
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        logger.warn("CORS rejection", { origin, path: req?.path });
+        logger.warn("CORS rejection", { origin });
         callback(new Error("Not allowed by CORS"));
       }
     }
@@ -73,7 +72,7 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   exposedHeaders: ["Content-Disposition"],
-  maxAge: 600, // Cache preflight for 10 minutes
+  maxAge: 600,
 };
 
 app.use(cors(corsOptions));
@@ -138,6 +137,25 @@ app.use(
     permittedCrossDomainPolicies: { permittedPolicies: "none" },
   })
 );
+
+// Add these additional security headers
+app.use((req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), microphone=(), camera=(), payment=()"
+  );
+
+  // Additional security headers
+  res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+
+  // Remove server header
+  res.removeHeader("X-Powered-By");
+
+  next();
+});
 
 // Add Permissions-Policy header
 app.use((req, res, next) => {
@@ -214,27 +232,52 @@ app.use(
   })
 );
 
-// Health check endpoint (before rate limiting)
 app.get("/health", async (req, res) => {
   const health = {
     status: "OK",
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+    uptime: Math.floor(process.uptime()),
     environment: process.env.NODE_ENV || "development",
+    version: process.env.APP_VERSION || "1.0.0",
   };
 
   try {
     const dbState = mongoose.connection.readyState;
-    health.database = dbState === 1 ? "connected" : "disconnected";
+    health.database = {
+      status: dbState === 1 ? "connected" : "disconnected",
+      readyState: dbState,
+    };
+
+    if (dbState === 1) {
+      const startTime = Date.now();
+      await mongoose.connection.db.admin().ping();
+      health.database.responseTime = `${Date.now() - startTime}ms`;
+    }
+
+    const memUsage = process.memoryUsage();
+    health.memory = {
+      heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+      rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+    };
 
     if (dbState !== 1) {
       health.status = "ERROR";
-      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(health);
+      return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json(health);
     }
 
     res.status(HTTP_STATUS.OK).json(health);
   } catch (error) {
+    logger.error("Health check failed", {
+      error: error.message,
+      stack: error.stack,
+    });
+
     health.status = "ERROR";
+    health.error =
+      process.env.NODE_ENV === "development"
+        ? error.message
+        : "Service unhealthy";
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(health);
   }
 });

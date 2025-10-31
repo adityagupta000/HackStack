@@ -16,16 +16,18 @@ const loginLimiter = rateLimit({
   },
 });
 
-// FIXED: More reasonable global limit
 const globalLimiter = rateLimit({
-  windowMs: parseInt(process.env.GLOBAL_LIMIT_WINDOW) || 1 * 60 * 1000, // 1 minute
-  max: parseInt(process.env.GLOBAL_LIMIT_MAX) || 300, // Increased to 300
+  windowMs: parseInt(process.env.GLOBAL_LIMIT_WINDOW) || 1 * 60 * 1000,
+  max: parseInt(process.env.GLOBAL_LIMIT_MAX) || 100,
   message: "Too many requests. Please slow down.",
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health check
     return req.path === "/health";
+  },
+
+  keyGenerator: (req) => {
+    return req.ip || req.headers["x-forwarded-for"] || "unknown";
   },
 });
 
@@ -76,11 +78,12 @@ const strictLimiter = rateLimit({
 });
 
 const verificationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 attempts per 15 minutes per IP
+  windowMs: 15 * 60 * 1000, 
+  max: 5, 
   message: "Too many verification attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true, 
 });
 
 const refreshTokenLimiter = rateLimit({

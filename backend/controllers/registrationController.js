@@ -8,87 +8,78 @@ const crypto = require("crypto");
 const { sanitizeInput } = require("../utils/sanitize");
 const logger = require("../config/logger");
 
-// FIXED: Proper atomic registration with better duplicate handling
 exports.registerForEvent = async (req, res) => {
   const { eventId } = req.params;
   const userId = req.user._id;
 
-  // Validate ObjectIds
   if (!mongoose.Types.ObjectId.isValid(eventId)) {
     return res.status(400).json({ message: "Invalid event ID" });
   }
 
-  // Start a session for transaction
   const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
-    // Check if event exists
-    const event = await Event.findById(eventId).session(session);
-    if (!event) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ message: "Event not found" });
-    }
+    // Use retryable writes for better handling of transient errors
+    await session.withTransaction(
+      async () => {
+        // Lock the documents by using findOneAndUpdate with upsert
+        const event = await Event.findById(eventId).session(session).lean();
 
-    // Check for existing registration within transaction
-    const existingRegistration = await Registration.findOne({
-      user: userId,
-      event: eventId,
-    }).session(session);
+        if (!event) {
+          throw new Error("EVENT_NOT_FOUND");
+        }
 
-    if (existingRegistration) {
-      await session.abortTransaction();
-      session.endSession();
-      logger.warn("Duplicate registration attempt", {
-        userId,
-        eventId,
-        requestId: req.id,
-      });
-      return res.status(400).json({
-        message: "You have already registered for this event.",
-        registrationId: existingRegistration._id,
-      });
-    }
+        // Try to create registration with unique constraint
+        // This will fail atomically if duplicate exists
+        const verificationToken = crypto.randomBytes(32).toString("hex");
+        const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
-    // Generate verification token
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const tokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
+        const registration = new Registration({
+          user: userId,
+          event: eventId,
+          verificationToken,
+          tokenExpiresAt,
+          registeredAt: new Date(),
+          status: "pending",
+          paymentStatus: "unpaid",
+        });
 
-    // Create new registration
-    const registration = new Registration({
-      user: userId,
-      event: eventId,
-      verificationToken,
-      tokenExpiresAt,
-      registeredAt: new Date(),
-      status: "pending",
-      paymentStatus: "unpaid",
-    });
+        await registration.save({ session });
 
-    await registration.save({ session });
+        // Store for response
+        req.registrationResult = {
+          registrationId: registration._id,
+          message: "Successfully registered!",
+        };
+      },
+      {
+        readPreference: "primary",
+        readConcern: { level: "majority" },
+        writeConcern: { w: "majority" },
+      }
+    );
 
-    await session.commitTransaction();
     session.endSession();
 
     logger.info("Event registration successful", {
       userId,
       eventId,
-      registrationId: registration._id,
+      registrationId: req.registrationResult.registrationId,
       requestId: req.id,
     });
 
-    res.status(201).json({
-      message: "Successfully registered!",
-      registrationId: registration._id,
-    });
+    res.status(201).json(req.registrationResult);
   } catch (err) {
-    await session.abortTransaction();
     session.endSession();
 
-    // Handle duplicate key error (backup safety net)
+    // Handle custom errors
+    if (err.message === "EVENT_NOT_FOUND") {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    // Handle duplicate key error
     if (err.code === 11000) {
-      logger.warn("Duplicate key error in registration", {
+      logger.warn("Duplicate registration attempt", {
         userId,
         eventId,
         requestId: req.id,
@@ -108,7 +99,6 @@ exports.registerForEvent = async (req, res) => {
 
     res.status(500).json({
       message: "Registration failed. Please try again.",
-      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 };

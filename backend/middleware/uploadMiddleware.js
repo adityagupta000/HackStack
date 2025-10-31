@@ -85,17 +85,28 @@ const ALLOWED_IMAGE_TYPES = [
 ];
 const ALLOWED_PDF_TYPES = ["application/pdf"];
 
-// FIXED: Allowed file extensions whitelist
 const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
 const ALLOWED_PDF_EXTENSIONS = [".pdf"];
 
-// FIXED: Secure storage configuration
+const normalizeExtension = (filename) => {
+  if (!filename || typeof filename !== "string") {
+    return null;
+  }
+
+  const ext = path.extname(filename).toLowerCase();
+
+  if (!ext.startsWith(".")) {
+    return null;
+  }
+
+  return ext;
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder =
       file.fieldname === "ruleBook" ? "uploads/rulebooks" : "uploads/images";
 
-    // Double-check folder exists
     if (!fs.existsSync(folder)) {
       fs.mkdirSync(folder, { recursive: true, mode: 0o755 });
     }
@@ -103,10 +114,14 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     try {
-      // Get file extension
-      const ext = path.extname(file.originalname).toLowerCase();
+      // Normalize extension
+      const ext = normalizeExtension(file.originalname);
 
-      // FIXED: Strict extension validation
+      if (!ext) {
+        return cb(new Error("Invalid file extension"));
+      }
+
+      // Validate extension
       const allowedExts =
         file.fieldname === "ruleBook"
           ? ALLOWED_PDF_EXTENSIONS
@@ -120,12 +135,12 @@ const storage = multer.diskStorage({
         );
       }
 
-      // FIXED: Generate secure filename without original name
+      // Generate secure filename
       const timestamp = Date.now();
       const randomString = uuidv4().split("-")[0];
       const uniqueName = `${file.fieldname}_${timestamp}_${randomString}${ext}`;
 
-      // Final validation - ensure no path traversal
+      // Final validation
       if (
         uniqueName.includes("..") ||
         uniqueName.includes("/") ||
@@ -136,6 +151,10 @@ const storage = multer.diskStorage({
 
       cb(null, uniqueName);
     } catch (error) {
+      logger.error("Filename generation error", {
+        error: error.message,
+        originalname: file.originalname,
+      });
       cb(new Error("Filename generation failed"));
     }
   },
@@ -166,7 +185,6 @@ const validateFileType = (file, allowedMimes, allowedExts) => {
   return true;
 };
 
-// FIXED: Magic number validation middleware with streaming
 const magicNumberValidator = (req, res, next) => {
   if (!req.file && !req.files) {
     return next();
@@ -176,50 +194,87 @@ const magicNumberValidator = (req, res, next) => {
 
   for (const file of files) {
     if (file.path && fs.existsSync(file.path)) {
+      let fd;
       try {
-        // Read only first 12 bytes for magic number detection
-        const fd = fs.openSync(file.path, "r");
-        const buffer = Buffer.alloc(12);
-        fs.readSync(fd, buffer, 0, 12, 0);
+        // Read more bytes for better validation (first 512 bytes)
+        fd = fs.openSync(file.path, "r");
+        const buffer = Buffer.alloc(512);
+        const bytesRead = fs.readSync(fd, buffer, 0, 512, 0);
         fs.closeSync(fd);
-        const detectedType = fileTypeFromBuffer(buffer);
+        fd = null;
 
-        // Validate detected type matches expected type
+        if (bytesRead < 12) {
+          throw new Error("File too small or corrupted");
+        }
+
+        const detectedType = fileTypeFromBuffer(buffer.slice(0, 12));
+
+        // Additional validation: check file size
+        const stats = fs.statSync(file.path);
+        const maxSize =
+          file.fieldname === "ruleBook"
+            ? FILE_LIMITS.PDF_MAX_SIZE
+            : FILE_LIMITS.IMAGE_MAX_SIZE;
+
+        if (stats.size > maxSize) {
+          throw new Error("File size exceeds limit");
+        }
+
         if (file.fieldname === "ruleBook") {
           if (detectedType !== "application/pdf") {
-            // Clean up invalid file
-            fs.unlinkSync(file.path);
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-              message: "Invalid file content. File is not a valid PDF.",
-            });
+            throw new Error("Invalid PDF file");
+          }
+
+          // Additional PDF validation: check for PDF structure
+          const pdfHeader = buffer.slice(0, 5).toString("ascii");
+          if (!pdfHeader.startsWith("%PDF-")) {
+            throw new Error("Invalid PDF structure");
           }
         } else if (file.fieldname === "image") {
           if (!ALLOWED_IMAGE_TYPES.includes(detectedType)) {
-            // Clean up invalid file
-            fs.unlinkSync(file.path);
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-              message: "Invalid file content. File is not a valid image.",
-            });
+            throw new Error("Invalid image file");
           }
         }
       } catch (error) {
+        // Ensure file descriptor is closed
+        if (fd !== null && fd !== undefined) {
+          try {
+            fs.closeSync(fd);
+          } catch (closeError) {
+            logger.error("Failed to close file descriptor", {
+              error: closeError.message,
+              requestId: req.id,
+            });
+          }
+        }
+
         logger.error("Magic number validation failed", {
           error: error.message,
           stack: error.stack,
           filename: file.filename,
+          fieldname: file.fieldname,
           requestId: req.id,
         });
+
         // Clean up file
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
+        try {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        } catch (unlinkError) {
+          logger.error("Failed to delete invalid file", {
+            error: unlinkError.message,
+            path: file.path,
+            requestId: req.id,
+          });
         }
+
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
-          message: "File validation failed",
+          message: "File validation failed. Please upload a valid file.",
         });
       }
     }
   }
-
   next();
 };
 

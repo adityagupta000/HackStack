@@ -16,7 +16,16 @@ const connectDB = async () => {
 
     logger.info("MongoDB connected successfully");
 
-    // Handle connection events
+    if (process.env.NODE_ENV === "production") {
+      mongoose.set("debug", (collectionName, method, query, doc) => {
+        logger.debug("MongoDB Query", {
+          collection: collectionName,
+          method: method,
+          query: JSON.stringify(query).substring(0, 200),
+        });
+      });
+    }
+
     mongoose.connection.on("error", (err) => {
       logger.error("MongoDB connection error", {
         error: err.message,
@@ -30,6 +39,14 @@ const connectDB = async () => {
 
     mongoose.connection.on("reconnected", () => {
       logger.info("MongoDB reconnected successfully");
+    });
+
+    mongoose.connection.on("connectionPoolCreated", () => {
+      logger.info("MongoDB connection pool created");
+    });
+
+    mongoose.connection.on("connectionPoolClosed", () => {
+      logger.warn("MongoDB connection pool closed");
     });
 
     return conn;
