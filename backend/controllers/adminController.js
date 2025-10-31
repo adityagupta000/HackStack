@@ -4,6 +4,8 @@ const User = require("../models/User");
 const Event = require("../models/Event");
 const Registration = require("../models/Registration");
 const Feedback = require("../models/Feedback");
+const logger = require("../config/logger");
+const { sanitizeInput, escapeRegex } = require("../utils/sanitize");
 
 // ================== 📊 Admin Dashboard ==================
 exports.getAdminStats = async (req, res) => {
@@ -15,79 +17,89 @@ exports.getAdminStats = async (req, res) => {
 
     res.json({ userCount, eventCount, registrationCount, feedbackCount });
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch stats", error: err.message });
+    logger.error("Failed to fetch admin stats", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Failed to fetch stats" });
   }
 };
 
 exports.getDashboardSummary = async (req, res) => {
   try {
-    const userCount = await User.countDocuments();
-    const eventCount = await Event.countDocuments();
-    const registrationCount = await Registration.countDocuments();
-    const feedbackCount = await Feedback.countDocuments();
-
-    // 👤 Latest Users
-    const latestUsers = await User.find({ role: "user" })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select("name email createdAt");
-
-    // 📝 Latest Registrations
-    const latestRegistrations = await Registration.find()
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate("user", "name email")
-      .populate("event", "title");
-
-    // 💬 Latest Feedback
-    const latestFeedback = await Feedback.find()
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate("user", "name")
-      .populate("event", "title");
-
-    // 📊 Domain-wise Event Count (for Pie Chart)
-    const domainBreakdownArray = await Event.aggregate([
-      {
-        $group: {
-          _id: "$category",
-          count: { $sum: 1 },
+    // Run all queries in parallel
+    const [
+      userCount,
+      eventCount,
+      registrationCount,
+      feedbackCount,
+      latestUsers,
+      latestRegistrations,
+      latestFeedback,
+      domainBreakdownArray,
+      eventRegistrationStats,
+    ] = await Promise.all([
+      User.countDocuments(),
+      Event.countDocuments(),
+      Registration.countDocuments(),
+      Feedback.countDocuments(),
+      User.find({ role: "user" })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("name email createdAt")
+        .lean(),
+      Registration.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate("user", "name email")
+        .populate("event", "title")
+        .lean(),
+      Feedback.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate("user", "name")
+        .populate("event", "title")
+        .lean(),
+      Event.aggregate([
+        {
+          $group: {
+            _id: "$category",
+            count: { $sum: 1 },
+          },
         },
-      },
+      ]),
+      Registration.aggregate([
+        {
+          $group: {
+            _id: "$event",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $lookup: {
+            from: "events",
+            localField: "_id",
+            foreignField: "_id",
+            as: "event",
+          },
+        },
+        { $unwind: "$event" },
+        {
+          $project: {
+            title: "$event.title",
+            count: 1,
+          },
+        },
+        { $sort: { count: -1 } },
+      ]),
     ]);
 
+    // n Domain-wise Event Count (for Pie Chart)
     const domainBreakdown = {};
     domainBreakdownArray.forEach((item) => {
       domainBreakdown[item._id] = item.count;
     });
-
-    // 📈 Event-wise Registration Count (for Bar Chart)
-    const eventRegistrationStats = await Registration.aggregate([
-      {
-        $group: {
-          _id: "$event",
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $lookup: {
-          from: "events",
-          localField: "_id",
-          foreignField: "_id",
-          as: "event",
-        },
-      },
-      { $unwind: "$event" },
-      {
-        $project: {
-          title: "$event.title",
-          count: 1,
-        },
-      },
-      { $sort: { count: -1 } },
-    ]);
 
     res.json({
       userCount,
@@ -101,9 +113,13 @@ exports.getDashboardSummary = async (req, res) => {
       latestFeedback,
     });
   } catch (err) {
+    logger.error("Failed to fetch dashboard summary", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
     res.status(500).json({
       message: "Failed to fetch dashboard summary",
-      error: err.message,
     });
   }
 };
@@ -111,17 +127,32 @@ exports.getDashboardSummary = async (req, res) => {
 // ================== 👥 User Management ==================
 exports.getAllUsers = async (req, res) => {
   try {
-    const search = req.query.search || "";
+    let search = req.query.search || "";
+
+    if (search.length > 100) {
+      return res.status(400).json({ message: "Search query too long" });
+    }
+
+    search = escapeRegex(sanitizeInput(search));
+
     const users = await User.find({
       $or: [
         { name: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } },
       ],
-    }).select("-password -refreshToken");
+    })
+      .select("-password -refreshToken")
+      .limit(100)
+      .lean();
 
     res.json(users);
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    logger.error("Failed to fetch users", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -142,9 +173,13 @@ exports.changeUserRole = async (req, res) => {
 
     res.json(user);
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to change role", error: err.message });
+    logger.error("Failed to change user role", {
+      error: err.message,
+      stack: err.stack,
+      userId: req.params.id,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Failed to change role" });
   }
 };
 
@@ -155,26 +190,45 @@ exports.deleteUser = async (req, res) => {
 
     res.json({ message: "User deleted" });
   } catch (err) {
-    res.status(500).json({ message: "Deletion failed", error: err.message });
+    logger.error("Failed to delete user", {
+      error: err.message,
+      stack: err.stack,
+      userId: req.params.id,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Deletion failed" });
   }
 };
 
 // ================== 🎯 Event Management ==================
 exports.getAllEvents = async (req, res) => {
   try {
-    const query = req.query.search || "";
+    let query = req.query.search || "";
+
+    if (query.length > 100) {
+      return res.status(400).json({ message: "Search query too long" });
+    }
+
+    query = escapeRegex(sanitizeInput(query));
+
     const events = await Event.find({
       $or: [
         { title: { $regex: query, $options: "i" } },
         { description: { $regex: query, $options: "i" } },
       ],
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
 
     res.json(events);
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch events", error: err.message });
+    logger.error("Failed to fetch events", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Failed to fetch events" });
   }
 };
 
@@ -209,10 +263,12 @@ exports.createEvent = async (req, res) => {
     await event.save();
     res.status(201).json(event);
   } catch (err) {
-    console.error("Create Event Error:", err);
-    res
-      .status(400)
-      .json({ message: "Event creation failed", error: err.message });
+    logger.error("Event creation failed", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(400).json({ message: "Event creation failed" });
   }
 };
 
@@ -276,7 +332,12 @@ exports.updateEvent = async (req, res) => {
       .status(200)
       .json({ message: "Event updated successfully", event: updatedEvent });
   } catch (err) {
-    console.error("Update Event Error:", err);
+    logger.error("Event update failed", {
+      error: err.message,
+      stack: err.stack,
+      eventId: req.params.id,
+      requestId: req.id,
+    });
     res.status(500).json({ message: "Server error during event update" });
   }
 };
@@ -288,7 +349,13 @@ exports.deleteEvent = async (req, res) => {
 
     res.json({ message: "Event deleted" });
   } catch (err) {
-    res.status(500).json({ message: "Deletion failed", error: err.message });
+    logger.error("Failed to delete event", {
+      error: err.message,
+      stack: err.stack,
+      eventId: req.params.id,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Deletion failed" });
   }
 };
 
@@ -318,27 +385,41 @@ exports.getAllRegistrations = async (req, res) => {
 
     res.json(filtered);
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch registrations", error: err.message });
+    logger.error("Failed to fetch registrations", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Failed to fetch registrations" });
   }
 };
 
 exports.getAllFeedback = async (req, res) => {
   try {
-    const query = req.query.search || "";
+    let query = req.query.search || "";
+
+    if (query.length > 100) {
+      return res.status(400).json({ message: "Search query too long" });
+    }
+
+    query = escapeRegex(sanitizeInput(query));
 
     const feedback = await Feedback.find({
       $or: [{ text: { $regex: query, $options: "i" } }],
     })
       .populate("user", "name email")
       .populate("event", "title")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
 
     res.json(feedback);
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch feedback", error: err.message });
+    logger.error("Failed to fetch feedback", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Failed to fetch feedback" });
   }
 };

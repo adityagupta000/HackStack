@@ -7,14 +7,14 @@ const Login = () => {
   const navigate = useNavigate();
 
   const savedEmail = localStorage.getItem("savedEmail") || "";
-  const savedPassword = localStorage.getItem("savedPassword") || "";
+
   const [formData, setFormData] = useState({
     email: savedEmail,
-    password: savedPassword,
+    password: "", // Never pre-fill password
   });
   const [rememberMe, setRememberMe] = useState(savedEmail !== "");
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState(""); // "success" or "error"
+  const [messageType, setMessageType] = useState("");
   const [loading, setLoading] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
   const [showMessage, setShowMessage] = useState(false);
@@ -41,6 +41,7 @@ const Login = () => {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -48,23 +49,22 @@ const Login = () => {
 
     try {
       const response = await axiosInstance.post("/auth/login", formData, {
-        withCredentials: true, // ⬅️ Important for cookie
+        withCredentials: true,
       });
 
       saveAuth(response.data.accessToken, response.data.role);
 
+      // FIXED: Only save email if remember me is checked
       if (rememberMe) {
         localStorage.setItem("savedEmail", formData.email);
-        localStorage.setItem("savedPassword", formData.password);
       } else {
         localStorage.removeItem("savedEmail");
-        localStorage.removeItem("savedPassword");
       }
 
       setMessage("Login successful");
       setAttempts(0);
       setMessageType("success");
-      setFormData({ email: "", password: "" });
+      setFormData({ email: formData.email, password: "" });
 
       setTimeout(() => {
         setLoading(false);
@@ -78,9 +78,14 @@ const Login = () => {
         setLockoutTime(retryAfter);
         setMessage(`Too many attempts. Try again in ${retryAfter} seconds.`);
       } else if (attempts + 1 >= 3) {
-        setMessage("Too many failed attempts. Please register.");
+        setMessage(
+          "Too many failed attempts. Please register or reset password."
+        );
       } else {
-        setMessage("Invalid credentials. Please try again.");
+        setMessage(
+          error.response?.data?.message ||
+            "Invalid credentials. Please try again."
+        );
       }
 
       setMessageType("error");
@@ -189,7 +194,7 @@ const Login = () => {
           <div className="d-flex justify-content-center">
             <button
               type="submit"
-              className="btn btn-outline-danger mb-3 mt-3 d-flex align-items-center"
+              className="btn btn-outline-dark mb-3 mt-3 d-flex align-items-center"
               disabled={lockoutTime > 0 || loading}
             >
               {loading ? (
@@ -248,17 +253,15 @@ const Login = () => {
           font-size: 12px;
           color: #3D85D8;
         }
-          a {
-            text-decoration: none;
-            font-wight: bold;
-            border-bottom: 1px solid transparent; 
-            transition: border-bottom 0.3s ease-in-out, color 0.3s ease-in-out;
-          }
-
-          a:hover {
-            color: blue;
-            border-bottom: 1px solid red; 
-          }
+        a {
+          text-decoration: none;
+          border-bottom: 1px solid transparent;
+          transition: border-bottom 0.3s ease-in-out, color 0.3s ease-in-out;
+        }
+        a:hover {
+          color: blue;
+          border-bottom: 1px solid red;
+        }
       `}</style>
     </div>
   );

@@ -9,7 +9,7 @@ const Footer = () => (
     <Row className=" mx-3 py-4 text-center text-md-start">
       <Col lg={4} md={6} className="mb-4 mb-lg-0">
         <h5 className="text-uppercase mb-3">About Hack-a-Fest</h5>
-        <p>
+        <p style={{ textAlign: "justify" }}>
           Join the Innovation Revolution! At Hack-a-Fest, we bring together the
           brightest minds to tackle real-world challenges through technology and
           creativity. Whether you're a coder, designer, or tech enthusiast, our
@@ -73,11 +73,6 @@ const Footer = () => (
               Terms of Service
             </a>
           </li>
-          {/* <li>
-            <a href="#!" className="text-white">
-              Contact Us
-            </a>
-          </li> */}
           <li>
             <a href="/my-events" className="text-white">
               My Events

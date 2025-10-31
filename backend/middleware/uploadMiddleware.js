@@ -1,82 +1,402 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
+const logger = require("../config/logger");
+const { FILE_LIMITS, HTTP_STATUS } = require("../config/constants");
 
-// Allowed MIME Types
-const allowedImageTypes = ["image/jpeg", "image/png"];
-const allowedPdfTypes = ["application/pdf"];
+// FIXED: Magic number validation for file types
+const fileTypeFromBuffer = (buffer) => {
+  // Check first few bytes (magic numbers)
+  if (!buffer || buffer.length < 4) return null;
 
-// File Size Limits
-const maxImageSize = 5 * 1024 * 1024; // 5MB for images
-const maxPdfSize = 10 * 1024 * 1024; // 10MB for PDFs
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
 
-// Storage Configuration
+  // PNG: 89 50 4E 47
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return "image/png";
+  }
+
+  // GIF: 47 49 46 38
+  if (
+    buffer[0] === 0x47 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x38
+  ) {
+    return "image/gif";
+  }
+
+  // WebP: 52 49 46 46 ... 57 45 42 50
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+
+  // PDF: 25 50 44 46
+  if (
+    buffer[0] === 0x25 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x44 &&
+    buffer[3] === 0x46
+  ) {
+    return "application/pdf";
+  }
+
+  return null;
+};
+
+// Ensure upload directories exist
+const createUploadDirectories = () => {
+  const dirs = ["uploads", "uploads/images", "uploads/rulebooks"];
+  dirs.forEach((dir) => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+    }
+  });
+};
+
+// Initialize directories
+createUploadDirectories();
+
+// FIXED: Strict allowed MIME types
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+];
+const ALLOWED_PDF_TYPES = ["application/pdf"];
+
+// FIXED: Allowed file extensions whitelist
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+const ALLOWED_PDF_EXTENSIONS = [".pdf"];
+
+// FIXED: Secure storage configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Store files in 'uploads/' directory
+    const folder =
+      file.fieldname === "ruleBook" ? "uploads/rulebooks" : "uploads/images";
+
+    // Double-check folder exists
+    if (!fs.existsSync(folder)) {
+      fs.mkdirSync(folder, { recursive: true, mode: 0o755 });
+    }
+    cb(null, folder);
   },
   filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
+    try {
+      // Get file extension
+      const ext = path.extname(file.originalname).toLowerCase();
+
+      // FIXED: Strict extension validation
+      const allowedExts =
+        file.fieldname === "ruleBook"
+          ? ALLOWED_PDF_EXTENSIONS
+          : ALLOWED_IMAGE_EXTENSIONS;
+
+      if (!allowedExts.includes(ext)) {
+        return cb(
+          new Error(
+            `Invalid file extension: ${ext}. Allowed: ${allowedExts.join(", ")}`
+          )
+        );
+      }
+
+      // FIXED: Generate secure filename without original name
+      const timestamp = Date.now();
+      const randomString = uuidv4().split("-")[0];
+      const uniqueName = `${file.fieldname}_${timestamp}_${randomString}${ext}`;
+
+      // Final validation - ensure no path traversal
+      if (
+        uniqueName.includes("..") ||
+        uniqueName.includes("/") ||
+        uniqueName.includes("\\")
+      ) {
+        return cb(new Error("Invalid filename generated"));
+      }
+
+      cb(null, uniqueName);
+    } catch (error) {
+      cb(new Error("Filename generation failed"));
+    }
   },
 });
 
-// File Filter (Determines Valid File Types)
-const fileFilter = (req, file, cb) => {
-  if (req.url.includes("upload-rulebook")) {
-    // Rule Book Upload (Only PDFs)
-    if (!allowedPdfTypes.includes(file.mimetype)) {
-      return cb(new Error("Invalid file type. Only PDF files are allowed."));
+// FIXED: Enhanced file filter with magic number validation
+const validateFileType = (file, allowedMimes, allowedExts) => {
+  // Check MIME type
+  if (!allowedMimes.includes(file.mimetype)) {
+    return false;
+  }
+
+  // Check file extension
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!allowedExts.includes(ext)) {
+    return false;
+  }
+
+  // Additional validation: check original filename doesn't contain path traversal
+  if (
+    file.originalname.includes("..") ||
+    file.originalname.includes("/") ||
+    file.originalname.includes("\\")
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+// FIXED: Magic number validation middleware with streaming
+const magicNumberValidator = (req, res, next) => {
+  if (!req.file && !req.files) {
+    return next();
+  }
+
+  const files = req.file ? [req.file] : Object.values(req.files || {}).flat();
+
+  for (const file of files) {
+    if (file.path && fs.existsSync(file.path)) {
+      try {
+        // Read only first 12 bytes for magic number detection
+        const fd = fs.openSync(file.path, "r");
+        const buffer = Buffer.alloc(12);
+        fs.readSync(fd, buffer, 0, 12, 0);
+        fs.closeSync(fd);
+        const detectedType = fileTypeFromBuffer(buffer);
+
+        // Validate detected type matches expected type
+        if (file.fieldname === "ruleBook") {
+          if (detectedType !== "application/pdf") {
+            // Clean up invalid file
+            fs.unlinkSync(file.path);
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+              message: "Invalid file content. File is not a valid PDF.",
+            });
+          }
+        } else if (file.fieldname === "image") {
+          if (!ALLOWED_IMAGE_TYPES.includes(detectedType)) {
+            // Clean up invalid file
+            fs.unlinkSync(file.path);
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+              message: "Invalid file content. File is not a valid image.",
+            });
+          }
+        }
+      } catch (error) {
+        logger.error("Magic number validation failed", {
+          error: error.message,
+          stack: error.stack,
+          filename: file.filename,
+          requestId: req.id,
+        });
+        // Clean up file
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: "File validation failed",
+        });
+      }
     }
-  } else {
-    // Event Image Upload (Only Images)
-    if (!allowedImageTypes.includes(file.mimetype)) {
-      return cb(
-        new Error("Invalid file type. Only JPEG and PNG images are allowed.")
-      );
-    }
+  }
+
+  next();
+};
+
+// File Filter for Images
+const imageFilter = (req, file, cb) => {
+  if (!validateFileType(file, ALLOWED_IMAGE_TYPES, ALLOWED_IMAGE_EXTENSIONS)) {
+    return cb(
+      new Error(
+        "Invalid image file. Only JPEG, PNG, JPG, GIF, and WebP images are allowed."
+      ),
+      false
+    );
   }
   cb(null, true);
 };
 
-// Create separate upload configurations for images and PDFs
+// File Filter for PDFs
+const pdfFilter = (req, file, cb) => {
+  if (!validateFileType(file, ALLOWED_PDF_TYPES, ALLOWED_PDF_EXTENSIONS)) {
+    return cb(
+      new Error("Invalid file type. Only PDF files are allowed."),
+      false
+    );
+  }
+  cb(null, true);
+};
+
+// General file filter based on field name
+const generalFilter = (req, file, cb) => {
+  if (file.fieldname === "ruleBook") {
+    return pdfFilter(req, file, cb);
+  } else if (file.fieldname === "image") {
+    return imageFilter(req, file, cb);
+  }
+  cb(new Error("Unknown field name"), false);
+};
+
+// FIXED: Image Upload Configuration with limits
 const imageUpload = multer({
-  storage: storage,
+  storage,
   limits: {
-    fileSize: maxImageSize, // 5MB limit for images
+    fileSize: FILE_LIMITS.IMAGE_MAX_SIZE,
+    files: 1,
+    fields: 10,
   },
-  fileFilter: (req, file, cb) => {
-    if (!allowedImageTypes.includes(file.mimetype)) {
-      return cb(
-        new Error("Invalid file type. Only JPEG and PNG images are allowed.")
-      );
-    }
-    cb(null, true);
-  },
+  fileFilter: imageFilter,
 });
 
+// FIXED: PDF Upload Configuration with limits
 const pdfUpload = multer({
-  storage: storage,
+  storage,
   limits: {
-    fileSize: maxPdfSize, // 10MB limit for PDFs
+    fileSize: FILE_LIMITS.PDF_MAX_SIZE,
+    files: 1,
+    fields: 10,
   },
-  fileFilter: (req, file, cb) => {
-    if (!allowedPdfTypes.includes(file.mimetype)) {
-      return cb(new Error("Invalid file type. Only PDF files are allowed."));
+  fileFilter: pdfFilter,
+});
+
+// FIXED: General Upload Configuration
+const generalUpload = multer({
+  storage,
+  limits: {
+    fileSize: FILE_LIMITS.PDF_MAX_SIZE,
+    files: 5,
+    fields: 20,
+    parts: 30,
+  },
+  fileFilter: generalFilter,
+});
+
+// FIXED: Enhanced error handler with cleanup
+const handleUploadError = (err, req, res, next) => {
+  // Clean up any uploaded files if error occurs
+  if (req.files) {
+    const files = Array.isArray(req.files)
+      ? req.files
+      : Object.values(req.files).flat();
+    files.forEach((file) => {
+      if (file.path && fs.existsSync(file.path)) {
+        try {
+          fs.unlinkSync(file.path);
+          logger.info("Cleaned up file after error", {
+            path: file.path,
+            requestId: req.id,
+          });
+        } catch (cleanupErr) {
+          logger.error("Failed to cleanup file", {
+            error: cleanupErr.message,
+            path: file.path,
+            requestId: req.id,
+          });
+        }
+      }
+    });
+  }
+
+  if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+    try {
+      fs.unlinkSync(req.file.path);
+      console.log(`Cleaned up file after error: ${req.file.path}`);
+    } catch (cleanupErr) {
+      console.error(`Failed to cleanup file: ${req.file.path}`, cleanupErr);
     }
-    cb(null, true);
-  },
-});
+  }
 
-// General upload middleware that determines file type based on URL
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: maxPdfSize, // Use max size for both
-  },
-  fileFilter: fileFilter,
-});
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      const maxSize = err.field === "ruleBook" ? "10MB" : "5MB";
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: `File too large. Maximum size is ${maxSize}`,
+        field: err.field,
+      });
+    }
+    if (err.code === "LIMIT_FILE_COUNT") {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: "Too many files uploaded",
+      });
+    }
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: `Unexpected field: ${err.field}`,
+      });
+    }
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      message: `Upload error: ${err.message}`,
+      code: err.code,
+    });
+  } else if (err) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      message: err.message || "File upload failed",
+    });
+  }
 
-module.exports = upload;
-module.exports.imageUpload = imageUpload;
-module.exports.pdfUpload = pdfUpload;
+  next();
+};
+
+// FIXED: Secure file deletion with path validation
+const secureDeleteFile = (filePath) => {
+  try {
+    // Validate that file is within uploads directory
+    const normalizedPath = path.normalize(filePath);
+    const uploadsDir = path.resolve(__dirname, "..", "uploads");
+    const absolutePath = path.resolve(__dirname, "..", normalizedPath);
+
+    // Ensure file is within uploads directory (prevent path traversal)
+    if (!absolutePath.startsWith(uploadsDir)) {
+      logger.warn("Path traversal attempt in file deletion", {
+        attemptedPath: absolutePath,
+      });
+      return false;
+    }
+
+    // Check if file exists
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+      logger.info("File deleted securely", { path: absolutePath });
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    logger.error("Secure file deletion failed", {
+      error: err.message,
+      stack: err.stack,
+      filePath,
+    });
+    return false;
+  }
+};
+
+module.exports = {
+  imageUpload,
+  pdfUpload,
+  generalUpload,
+  handleUploadError,
+  createUploadDirectories,
+  secureDeleteFile,
+  magicNumberValidator,
+};

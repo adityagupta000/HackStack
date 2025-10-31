@@ -1,4 +1,5 @@
 const Registration = require("../models/Registration");
+const logger = require("../config/logger");
 
 exports.verifyToken = async (req, res) => {
   const { token } = req.params;
@@ -10,8 +11,17 @@ exports.verifyToken = async (req, res) => {
     }).populate("user event");
 
     if (!registration) {
+      logger.warn("Invalid or expired verification token", {
+        requestId: req.id,
+      });
       return res.status(401).json({ error: "Invalid or expired token" });
     }
+
+    logger.info("Verification token validated", {
+      registrationId: registration._id,
+      userId: registration.user._id,
+      requestId: req.id,
+    });
 
     res.status(200).json({
       name: registration.user.name,
@@ -22,7 +32,13 @@ exports.verifyToken = async (req, res) => {
       registeredAt: registration.registeredAt,
     });
   } catch (err) {
-    console.error("Verification error:", err);
+    logger.error("Verification error", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+module.exports = exports;
