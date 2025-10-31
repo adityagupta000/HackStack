@@ -14,10 +14,7 @@ const connectDB = async () => {
       retryReads: true,
     });
 
-    logger.info("MongoDB connected successfully", {
-      host: conn.connection.host,
-      name: conn.connection.name,
-    });
+    logger.info("MongoDB connected successfully");
 
     // Handle connection events
     mongoose.connection.on("error", (err) => {

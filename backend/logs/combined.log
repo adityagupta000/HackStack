@@ -8,3 +8,21 @@
 {"environment":"development","frontendUrl":"http://localhost:3000","level":"info","message":"Server started successfully","port":"5000","service":"hackathon-backend","timestamp":"2025-10-31 10:25:47"}
 {"host":"ac-svwd9qg-shard-00-00.pbvrr8q.mongodb.net","level":"info","message":"MongoDB connected successfully","name":"HackaThon","service":"hackathon-backend","timestamp":"2025-10-31 10:25:48"}
 {"level":"info","message":"SIGINT (Ctrl+C) received. Shutting down gracefully...","service":"hackathon-backend","timestamp":"2025-10-31 10:25:54"}
+{"level":"info","message":"Upload directories created","service":"hackathon-backend","timestamp":"2025-10-31 10:40:04"}
+{"level":"info","message":"Server started on port 5000 in development mode","service":"hackathon-backend","timestamp":"2025-10-31 10:40:05"}
+{"level":"info","message":"Frontend allowed: http://localhost:3000","service":"hackathon-backend","timestamp":"2025-10-31 10:40:05"}
+{"environment":"development","frontendUrl":"http://localhost:3000","level":"info","message":"Server started successfully","port":"5000","service":"hackathon-backend","timestamp":"2025-10-31 10:40:05"}
+{"host":"ac-svwd9qg-shard-00-00.pbvrr8q.mongodb.net","level":"info","message":"MongoDB connected successfully","name":"HackaThon","service":"hackathon-backend","timestamp":"2025-10-31 10:40:10"}
+{"level":"info","message":"SIGINT (Ctrl+C) received. Shutting down gracefully...","service":"hackathon-backend","timestamp":"2025-10-31 10:41:26"}
+{"level":"info","message":"Upload directories created","service":"hackathon-backend","timestamp":"2025-10-31 10:41:32"}
+{"level":"info","message":"Server started on port 5000 in development mode","service":"hackathon-backend","timestamp":"2025-10-31 10:41:32"}
+{"level":"info","message":"Frontend allowed: http://localhost:3000","service":"hackathon-backend","timestamp":"2025-10-31 10:41:32"}
+{"environment":"development","frontendUrl":"http://localhost:3000","level":"info","message":"Server started successfully","port":"5000","service":"hackathon-backend","timestamp":"2025-10-31 10:41:32"}
+{"host":"ac-svwd9qg-shard-00-00.pbvrr8q.mongodb.net","level":"info","message":"MongoDB connected successfully","name":"HackaThon","service":"hackathon-backend","timestamp":"2025-10-31 10:41:33"}
+{"level":"info","message":"SIGINT (Ctrl+C) received. Shutting down gracefully...","service":"hackathon-backend","timestamp":"2025-10-31 10:43:45"}
+{"level":"info","message":"Upload directories created","service":"hackathon-backend","timestamp":"2025-10-31 10:43:48"}
+{"level":"info","message":"Server started on port 5000 in development mode","service":"hackathon-backend","timestamp":"2025-10-31 10:43:48"}
+{"level":"info","message":"Frontend allowed: http://localhost:3000","service":"hackathon-backend","timestamp":"2025-10-31 10:43:48"}
+{"environment":"development","frontendUrl":"http://localhost:3000","level":"info","message":"Server started successfully","port":"5000","service":"hackathon-backend","timestamp":"2025-10-31 10:43:48"}
+{"level":"info","message":"MongoDB connected successfully","service":"hackathon-backend","timestamp":"2025-10-31 10:43:51"}
+{"level":"info","message":"SIGINT (Ctrl+C) received. Shutting down gracefully...","service":"hackathon-backend","timestamp":"2025-10-31 10:46:55"}
