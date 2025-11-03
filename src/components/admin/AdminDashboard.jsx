@@ -12,6 +12,8 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { handleAPIError } from "../../utils/errorHandler";
+import logger from "../../utils/logger";
 
 const COLORS = [
   "#6366F1", // Indigo
@@ -34,18 +36,41 @@ const AdminDashboard = () => {
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const res = await axiosInstance.get("/admin/dashboard-summary");
+        setLoading(true);
+        setError(null);
+
+        const res = await axiosInstance.get("/admin/dashboard-summary", {
+          timeout: 15000,
+        });
+
         setData(res.data);
+
+        logger.info("Admin dashboard data loaded", {
+          userCount: res.data.userCount,
+          eventCount: res.data.eventCount,
+        });
+
+        logger.action("admin_dashboard_viewed");
       } catch (err) {
-        console.error("Failed to load dashboard data", err);
+        setError("Failed to load dashboard data");
+
+        logger.error("Failed to load dashboard data", err, {
+          status: err.response?.status,
+        });
+
+        handleAPIError(err, {
+          fallbackMessage: "Failed to load dashboard data",
+        });
       } finally {
         setLoading(false);
       }
     };
+
     fetchDashboard();
   }, []);
 
@@ -92,7 +117,35 @@ const AdminDashboard = () => {
     );
   };
 
-  if (loading) return <div className="text-center mt-8">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-red-500 text-5xl mb-4">
+            <i className="fas fa-exclamation-triangle"></i>
+          </div>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 md:p-4 max-w-full mx-auto">
