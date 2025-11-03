@@ -1,0 +1,1 @@
+{"error":"read ECONNRESET","level":"error","message":"Failed to fetch dashboard summary","requestId":"98373f31-1e97-4d5e-97f6-54a7b75be8b4","service":"hackathon-backend","stack":"Error: read ECONNRESET\n    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20)","timestamp":"2025-11-02 17:31:03"}

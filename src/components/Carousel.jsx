@@ -36,6 +36,12 @@ const Home = () => (
       <Carousel.Item className="d-flex justify-content-center align-items-center h-100">
         <div className="text-center">
           <h3 className="display-text fw-bold">
+            <span
+              className="blinking-dot"
+              style={{ color: "#AB274F", marginLeft: "2px" }}
+            >
+              _
+            </span>
             <TypingEffect
               text="Welcome To HackStack"
               style={{ color: "#FFEFD5" }}
@@ -45,7 +51,7 @@ const Home = () => (
               className="blinking-dot"
               style={{ color: "#AB274F", marginLeft: "2px" }}
             >
-              .
+              _
             </span>
           </h3>
           <i

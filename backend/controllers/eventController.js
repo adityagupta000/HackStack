@@ -2,35 +2,72 @@ const Event = require("../models/Event");
 const { validationResult, body } = require("express-validator");
 const fs = require("fs");
 const path = require("path");
+const logger = require("../config/logger");
+const mongoSanitize = require("express-mongo-sanitize");
+const { parseRegistrationFields } = require("../utils/jsonParser");
+const { sanitizeInput, validateLength } = require("../utils/sanitize");
 
-// ✅ Get all events with optional category filtering
-exports.getEvents = async (req, res) => {
+// FIXED: Secure path validation
+const validateFilePath = (filePath) => {
   try {
-    const category = req.query.category;
-    const filter = category ? { category } : {};
-    const events = await Event.find(filter);
-    res.status(200).json(events);
-  } catch (err) {
-    console.error("Error fetching events:", err.message);
-    res
-      .status(500)
-      .json({ message: "Failed to fetch events", error: err.message });
+    const uploadsDir = path.resolve(__dirname, "..", "uploads");
+    const absolutePath = path.resolve(__dirname, "..", filePath);
+
+    // Ensure path is within uploads directory
+    if (!absolutePath.startsWith(uploadsDir)) {
+      logger.warn("Path traversal attempt detected", { filePath });
+      return null;
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(absolutePath)) {
+      return null;
+    }
+
+    return absolutePath;
+  } catch (error) {
+    logger.error("Path validation error", {
+      error: error.message,
+      stack: error.stack,
+      filePath,
+    });
+    return null;
   }
 };
 
-// ✅ Add a new event with validation
-exports.addEvent = async (req, res) => {
-  console.log("Received Data:", req.body);
-  console.log("Received File:", req.file);
+// Get all events with optional category filtering
+exports.getEvents = async (req, res) => {
+  try {
+    const category = sanitizeInput(req.query.category);
+    const filter = category ? { category } : {};
+    const events = await Event.find(filter).sort({ createdAt: -1 }).lean();
+    res.status(200).json(events);
+  } catch (err) {
+    logger.error("Failed to fetch events", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Failed to fetch events" });
+  }
+};
 
+exports.addEvent = async (req, res) => {
   // Run validations
   await Promise.all([
-    body("title").notEmpty().withMessage("Title is required").run(req),
+    body("title")
+      .notEmpty()
+      .withMessage("Title is required")
+      .isLength({ min: 3, max: 200 })
+      .withMessage("Title must be between 3 and 200 characters")
+      .run(req),
     body("date").notEmpty().withMessage("Date is required").run(req),
     body("time").notEmpty().withMessage("Time is required").run(req),
     body("description")
       .notEmpty()
       .withMessage("Description is required")
+      .isLength({ min: 10, max: 5000 })
+      .withMessage("Description must be between 10 and 5000 characters")
       .run(req),
     body("category")
       .notEmpty()
@@ -50,23 +87,48 @@ exports.addEvent = async (req, res) => {
       .withMessage("Price is required")
       .isNumeric()
       .withMessage("Price must be a number")
+      .isFloat({ min: 0, max: 1000000 })
+      .withMessage("Price must be between 0 and 1,000,000")
       .run(req),
   ]);
 
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    console.error("Validation Errors:", errors.array());
+    logger.warn("Event validation failed", {
+      errors: errors.array(),
+      requestId: req.id,
+    });
     return res.status(400).json({ errors: errors.array() });
   }
 
   // Ensure image file is present
   if (!req.file) {
-    console.error("File Upload Error: No image provided");
+    logger.warn("Event creation failed - no image provided", {
+      requestId: req.id,
+    });
     return res.status(400).json({ message: "Event image is required" });
   }
 
   try {
-    const { title, date, time, description, category, price } = req.body;
+    let { title, date, time, description, category, price } = req.body;
+
+    // Sanitize inputs
+    title = sanitizeInput(title);
+    date = sanitizeInput(date);
+    time = sanitizeInput(time);
+    description = sanitizeInput(description);
+    category = sanitizeInput(category);
+
+    // Use safe JSON parser
+    const registrationFields = parseRegistrationFields(
+      req.body.registrationFields || "[]"
+    );
+
+    if (registrationFields === null) {
+      return res.status(400).json({
+        message: "Invalid registration fields format",
+      });
+    }
 
     const newEvent = new Event({
       title,
@@ -76,25 +138,26 @@ exports.addEvent = async (req, res) => {
       image: `/uploads/${req.file.filename}`,
       category,
       price: parseFloat(price),
-      registrationFields: JSON.parse(req.body.registrationFields || "[]"),
-      ruleBook: null, // Will be uploaded separately
+      registrationFields,
+      ruleBook: null,
+      createdBy: req.user._id,
     });
 
     await newEvent.save();
-
-    console.log("Event Saved Successfully:", newEvent);
     res
       .status(201)
       .json({ message: "Event added successfully", event: newEvent });
   } catch (err) {
-    console.error("Error adding event:", err.message);
-    res
-      .status(500)
-      .json({ message: "Failed to add event", error: err.message });
+    logger.error("Failed to add event", {
+      error: err.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+    res.status(500).json({ message: "Failed to add event" });
   }
 };
 
-// ✅ Upload Rule Book (PDF)
+// Upload Rule Book (PDF)
 exports.uploadRuleBook = async (req, res) => {
   try {
     const { id } = req.params;
@@ -107,13 +170,17 @@ exports.uploadRuleBook = async (req, res) => {
 
     const event = await Event.findById(id);
     if (!event) {
+      // Clean up uploaded file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Delete old rule book if exists
+    // FIXED: Delete old rule book with secure path validation
     if (event.ruleBook) {
-      const oldPath = path.join(__dirname, "..", event.ruleBook);
-      if (fs.existsSync(oldPath)) {
+      const oldPath = validateFilePath(event.ruleBook);
+      if (oldPath && fs.existsSync(oldPath)) {
         fs.unlinkSync(oldPath);
       }
     }
@@ -126,31 +193,77 @@ exports.uploadRuleBook = async (req, res) => {
       ruleBook: event.ruleBook,
     });
   } catch (error) {
-    console.error("Error uploading rule book:", error.message);
-    res
-      .status(500)
-      .json({ message: "Failed to upload rule book", error: error.message });
+    logger.error("Failed to upload rule book", {
+      error: error.message,
+      stack: error.stack,
+      eventId: req.params.id,
+      requestId: req.id,
+    });
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ message: "Failed to upload rule book" });
   }
 };
 
-// ✅ Get Rule Book for Download
+// FIXED: Get Rule Book for Download with secure path validation
 exports.getRuleBook = async (req, res) => {
   try {
     const { id } = req.params;
-    const event = await Event.findById(id);
 
+    const event = await Event.findById(id).lean();
     if (!event || !event.ruleBook) {
       return res
         .status(404)
         .json({ message: "Rule book not found for this event" });
     }
 
-    const filePath = path.join(__dirname, "..", event.ruleBook);
-    res.download(filePath);
+    // FIXED: Validate file path to prevent path traversal
+    const filePath = validateFilePath(event.ruleBook);
+
+    if (!filePath) {
+      return res.status(404).json({ message: "Rule book file not found" });
+    }
+
+    // Set secure headers
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="rulebook_${id}.pdf"`
+    );
+    res.setHeader("X-Content-Type-Options", "nosniff");
+
+    // Stream file instead of using res.download for better control
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.on("error", (err) => {
+      logger.error("File stream error", {
+        error: err.message,
+        stack: err.stack,
+        eventId: req.params.id,
+        requestId: req.id,
+      });
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Error reading file" });
+      }
+    });
+
+    fileStream.pipe(res);
   } catch (error) {
-    console.error("Error retrieving rule book:", error.message);
-    res
-      .status(500)
-      .json({ message: "Failed to retrieve rule book", error: error.message });
+    logger.error("Failed to retrieve rule book", {
+      error: error.message,
+      stack: error.stack,
+      eventId: req.params.id,
+      requestId: req.id,
+    });
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Failed to retrieve rule book" });
+    }
   }
+};
+
+module.exports = {
+  getEvents: exports.getEvents,
+  addEvent: exports.addEvent,
+  uploadRuleBook: exports.uploadRuleBook,
+  getRuleBook: exports.getRuleBook,
 };

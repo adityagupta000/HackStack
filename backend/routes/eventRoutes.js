@@ -8,7 +8,14 @@ const {
   getRuleBook,
 } = require("../controllers/eventController");
 const { verifyToken, isAdmin } = require("../middleware/authMiddleware");
-const upload = require("../middleware/uploadMiddleware");
+const {
+  imageUpload,
+  pdfUpload,
+  handleUploadError,
+  magicNumberValidator, // FIXED: Import magic number validator
+} = require("../middleware/uploadMiddleware");
+const { fileUploadLimiter } = require("../middleware/rateLimit");
+
 
 // Get all events (Public Route with Category Filtering)
 router.get("/", getEvents);
@@ -18,12 +25,23 @@ router.post(
   "/",
   verifyToken,
   isAdmin,
-  upload.single("image"), // Image Upload for Event Poster
+  fileUploadLimiter,
+  imageUpload.single("image"),
+  magicNumberValidator, // FIXED: Add magic number validation
+  handleUploadError,
   [
-    body("title").notEmpty().withMessage("Title is required"),
+    body("title")
+      .notEmpty()
+      .withMessage("Title is required")
+      .isLength({ min: 3, max: 200 })
+      .withMessage("Title must be between 3 and 200 characters"),
     body("date").notEmpty().withMessage("Date is required"),
     body("time").notEmpty().withMessage("Time is required"),
-    body("description").notEmpty().withMessage("Description is required"),
+    body("description")
+      .notEmpty()
+      .withMessage("Description is required")
+      .isLength({ min: 10, max: 5000 })
+      .withMessage("Description must be between 10 and 5000 characters"),
     body("category")
       .isIn([
         "SOFTWARE DOMAIN EVENTS",
@@ -38,7 +56,9 @@ router.post(
       .notEmpty()
       .withMessage("Price is required")
       .isNumeric()
-      .withMessage("Price must be a number"),
+      .withMessage("Price must be a number")
+      .isFloat({ min: 0, max: 1000000 })
+      .withMessage("Price must be between 0 and 1,000,000"),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -54,7 +74,9 @@ router.post(
   "/:id/upload-rulebook",
   verifyToken,
   isAdmin,
-  upload.single("ruleBook"), // PDF Upload
+  pdfUpload.single("ruleBook"),
+  magicNumberValidator, // FIXED: Add magic number validation
+  handleUploadError,
   async (req, res) => {
     if (!req.file) {
       return res

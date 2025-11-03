@@ -4,6 +4,11 @@ import toast, { Toaster } from "react-hot-toast";
 import { Card, Button, Modal, Form } from "react-bootstrap";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
+import { sanitizeInput } from "../utils/sanitize";
+import { validateFeedback, validateSearchQuery } from "../utils/validation";
+import { handleAPIError } from "../utils/errorHandler";
+import logger from "../utils/logger";
+import { clearAuthData } from "../config/security";
 
 const UserDashboard = () => {
   const [registeredEvents, setRegisteredEvents] = useState([]);
@@ -13,6 +18,9 @@ const UserDashboard = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(null);
 
   const formatDate = (date) => {
     const d = new Date(date);
@@ -22,27 +30,22 @@ const UserDashboard = () => {
     return localDate.toISOString().split("T")[0];
   };
 
-  // Enhanced logout function that clears both localStorage and cookies
   const handleLogout = async () => {
     try {
-      // Make API call to logout endpoint
+      logger.info("Logout initiated");
+
       await axiosInstance.post("/auth/logout", null, {
         withCredentials: true,
       });
-    } catch (err) {
-      console.error("Logout failed:", err);
-    } finally {
-      // Clear localStorage
-      localStorage.clear();
 
-      // Clear all cookies by setting them to expire in the past
-      document.cookie.split(";").forEach((c) => {
-        const eqPos = c.indexOf("=");
-        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        // Also clear with domain specification for broader compatibility
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-      });
+      logger.info("Logged out successfully");
+      logger.action("user_logout");
+    } catch (err) {
+      logger.error("Logout failed", err);
+    } finally {
+      // Clear sessionStorage
+      sessionStorage.clear();
+      logger.clearUserId();
 
       // Redirect to login
       window.location.href = "/login";
@@ -52,25 +55,55 @@ const UserDashboard = () => {
   useEffect(() => {
     const fetchRegistrations = async () => {
       try {
+        setLoading(true);
+
         const res = await axiosInstance.get("/registrations/my-registrations");
         setRegisteredEvents(res.data);
+
+        logger.info("User registrations fetched", {
+          count: res.data.length,
+        });
       } catch (err) {
-        console.error(
-          "Registration fetch failed",
-          err.response?.data || err.message
-        );
-        toast.error("Failed to load your events");
+        logger.error("Failed to fetch registrations", err, {
+          status: err.response?.status,
+        });
+
+        handleAPIError(err, {
+          fallbackMessage: "Failed to load your events",
+        });
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchRegistrations();
+
+    // Log page view
+    logger.action("dashboard_view");
   }, []);
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+
+    // Validate search query
+    const validation = validateSearchQuery(value);
+    if (!validation.isValid) {
+      toast.error(validation.error);
+      return;
+    }
+
+    const sanitized = sanitizeInput(value);
+    setSearchQuery(sanitized);
+  };
 
   const filteredEvents = registeredEvents.filter((entry) => {
     const event = entry.event;
+    const query = searchQuery.toLowerCase();
+
     return (
-      event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      event.title?.toLowerCase().includes(query) ||
+      event.description?.toLowerCase().includes(query) ||
+      event.category?.toLowerCase().includes(query)
     );
   });
 
@@ -78,7 +111,7 @@ const UserDashboard = () => {
 
   const upcomingEvents = registeredEvents.filter((entry) => {
     const eventDate = new Date(entry.event.date);
-    return eventDate >= new Date(); // today or future
+    return eventDate >= new Date();
   });
 
   const todayEvents = registeredEvents.filter((entry) => {
@@ -104,45 +137,110 @@ const UserDashboard = () => {
 
   const handleOpenFeedback = (eventId) => {
     setSelectedEventId(eventId);
-    setFeedbackText(""); // reset
+    setFeedbackText("");
     setShowFeedbackModal(true);
+
+    logger.action("feedback_modal_opened", { eventId });
   };
 
   const handleSubmitFeedback = async () => {
+    // Validate feedback
+    const validation = validateFeedback(feedbackText);
+    if (!validation.isValid) {
+      toast.error(validation.error);
+      return;
+    }
+
+    const sanitizedFeedback = sanitizeInput(feedbackText.trim());
+
+    setSubmittingFeedback(true);
+
     try {
       await axiosInstance.post("/feedback", {
         eventId: selectedEventId,
-        text: feedbackText,
+        text: sanitizedFeedback,
       });
-      toast.success("Feedback submitted!");
+
+      toast.success("Feedback submitted successfully!");
       setShowFeedbackModal(false);
+      setFeedbackText("");
+
+      logger.info("Feedback submitted", {
+        eventId: selectedEventId,
+        feedbackLength: sanitizedFeedback.length,
+      });
+
+      logger.action("feedback_submitted", { eventId: selectedEventId });
     } catch (err) {
-      toast.error("Error submitting feedback.");
+      logger.error("Feedback submission failed", err, {
+        eventId: selectedEventId,
+      });
+
+      handleAPIError(err, {
+        fallbackMessage: "Error submitting feedback",
+      });
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
 
-  const handleDownloadReceipt = async (registrationId) => {
+  const handleDownloadReceipt = async (registrationId, eventTitle) => {
+    setDownloadingReceipt(registrationId);
+
     try {
       const response = await axiosInstance.get(
         `/registrations/${registrationId}/pdf`,
         {
-          responseType: "blob", // ensures proper file format
+          responseType: "blob",
+          timeout: 30000, // 30 seconds
         }
       );
 
+      // Create blob URL and download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `receipt_${registrationId}.pdf`;
+      a.download = `receipt_${eventTitle.replace(
+        /\s+/g,
+        "_"
+      )}_${registrationId}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+
+      toast.success("Receipt downloaded successfully!");
+
+      logger.info("Receipt downloaded", {
+        registrationId,
+        eventTitle,
+      });
+
+      logger.action("receipt_downloaded", { registrationId });
     } catch (error) {
-      toast.error("Could not download receipt");
-      console.error("PDF download error:", error.response || error.message);
+      logger.error("Receipt download failed", error, {
+        registrationId,
+        status: error.response?.status,
+      });
+
+      handleAPIError(error, {
+        fallbackMessage: "Could not download receipt",
+      });
+    } finally {
+      setDownloadingReceipt(null);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your events...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-5">
@@ -150,29 +248,24 @@ const UserDashboard = () => {
         position="top-center"
         reverseOrder={false}
         gutter={8}
-        containerClassName=""
-        containerStyle={{}}
         toastOptions={{
-          // Define default options
-          className: "",
           duration: 4000,
           style: {
             background: "#363636",
             color: "#fff",
           },
-          // Default options for specific types
           success: {
             duration: 3000,
-            theme: {
+            iconTheme: {
               primary: "green",
-              secondary: "black",
+              secondary: "white",
             },
           },
           error: {
             duration: 4000,
-            theme: {
+            iconTheme: {
               primary: "red",
-              secondary: "black",
+              secondary: "white",
             },
           },
         }}
@@ -182,7 +275,10 @@ const UserDashboard = () => {
       <div className="flex justify-between items-center mb-6">
         {/* Left-aligned: Back to Home */}
         <button
-          onClick={() => (window.location.href = "/home")}
+          onClick={() => {
+            logger.action("navigate_to_home");
+            window.location.href = "/home";
+          }}
           className="text-sm text-blue-600 hover:underline flex items-center"
         >
           <i className="fas fa-arrow-left mr-2"></i> Back to Home
@@ -191,7 +287,10 @@ const UserDashboard = () => {
         {/* Right-aligned group: Logout + Calendar */}
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setShowCalendar(true)}
+            onClick={() => {
+              setShowCalendar(true);
+              logger.action("calendar_opened");
+            }}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
           >
             View Calendar
@@ -207,30 +306,51 @@ const UserDashboard = () => {
 
       {/* Dashboard Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded h-28 flex flex-col justify-between">
+        <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded h-28 flex flex-col justify-center">
           <p className="text-sm">Total Events Registered</p>
           <h3 className="text-lg font-semibold">{registeredEvents.length}</h3>
         </div>
 
-        <div className="bg-blue-100 border-l-4 border-green-500 text-green-700 p-4 rounded h-28 flex flex-col justify-between">
+        <div className="bg-blue-100 border-l-4 border-green-500 text-green-700 p-4 rounded h-28 flex flex-col justify-center">
           <p className="text-sm">Upcoming Events</p>
           <h3 className="text-lg font-semibold">{upcomingEvents.length}</h3>
         </div>
 
-        <div className="bg-blue-100 border-l-4 border-red-500 text-red-700 p-4 rounded h-28 flex flex-col justify-between">
+        <div className="bg-blue-100 border-l-4 border-red-500 text-red-700 p-4 rounded h-28 flex flex-col justify-center">
           <p className="text-sm">Today's Events</p>
           <h3 className="text-lg font-semibold">{todayEvents.length}</h3>
         </div>
-
-        {/* Optionally include feedback count later if you track feedback */}
       </div>
 
       <h2 className="text-center mb-4">My Registered Events</h2>
 
       {registeredEvents.length === 0 ? (
-        <p className="text-center text-muted">
-          You have not registered for any events yet.
-        </p>
+        <div className="text-center py-12">
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-4">
+            <svg
+              className="h-8 w-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+          <p className="text-gray-600 mb-4">
+            You have not registered for any events yet.
+          </p>
+          <a
+            href="/home"
+            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Browse Events
+          </a>
+        </div>
       ) : (
         <>
           {registeredEvents.length >= 4 && (
@@ -238,10 +358,11 @@ const UserDashboard = () => {
               <div className="col-12">
                 <input
                   type="text"
-                  placeholder="Search by title or description..."
+                  placeholder="Search by title, description, or category..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full border-2 border-black rounded-md px-3 py-2 text-sm"
+                  maxLength={100}
                 />
               </div>
             </div>
@@ -250,9 +371,9 @@ const UserDashboard = () => {
           {/* Event Cards */}
           <div className="row">
             {filteredEvents.length === 0 ? (
-              <p className="text-center text-muted">
-                No events match your search.
-              </p>
+              <div className="col-12 text-center py-8">
+                <p className="text-gray-600">No events match your search.</p>
+              </div>
             ) : (
               filteredEvents.map((entry) => {
                 const event = entry.event;
@@ -260,41 +381,74 @@ const UserDashboard = () => {
                   <div className="col-md-4 mb-4" key={event._id}>
                     <Card className="h-100 shadow-sm p-3">
                       <Card.Body>
-                        <Card.Title>{event.title}</Card.Title>
+                        <Card.Title className="text-lg font-semibold mb-3">
+                          {sanitizeInput(event.title)}
+                        </Card.Title>
                         <Card.Text>
-                          <strong>Date:</strong> {event.date}
+                          <strong>Date:</strong> {sanitizeInput(event.date)}
                           <br />
-                          <strong>Time:</strong> {event.time}
+                          <strong>Time:</strong> {sanitizeInput(event.time)}
+                          <br />
+                          <strong>Category:</strong>{" "}
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            {sanitizeInput(event.category)}
+                          </span>
                         </Card.Text>
                         <Card.Text
                           className="text-muted"
                           style={{ fontSize: "0.9em", textAlign: "justify" }}
                         >
-                          {event.description?.slice(0, 120)}...
+                          {sanitizeInput(event.description?.slice(0, 120))}...
                         </Card.Text>
-                        <div className="d-flex justify-content-between gap-2">
+                        <div className="d-flex flex-column gap-2 mt-3">
                           {event.ruleBook && (
                             <Button
                               variant="outline-primary"
-                              href={`http://localhost:5000${event.ruleBook}`}
+                              href={
+                                event.ruleBook.startsWith("http")
+                                  ? event.ruleBook
+                                  : event.ruleBook.startsWith("/uploads")
+                                  ? `http://localhost:5000${event.ruleBook}`
+                                  : `http://localhost:5000/uploads/rulebooks/${event.ruleBook}`
+                              }
                               target="_blank"
                               size="sm"
+                              onClick={() => {
+                                logger.action("rulebook_viewed", {
+                                  eventId: event._id,
+                                });
+                              }}
                             >
+                              <i className="fas fa-book mr-2"></i>
                               Rulebook
                             </Button>
                           )}
                           <Button
                             variant="outline-success"
                             size="sm"
-                            onClick={() => handleDownloadReceipt(entry._id)}
+                            onClick={() =>
+                              handleDownloadReceipt(entry._id, event.title)
+                            }
+                            disabled={downloadingReceipt === entry._id}
                           >
-                            Download Receipt
+                            {downloadingReceipt === entry._id ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm mr-2"></span>
+                                Downloading...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-download mr-2"></i>
+                                Download Receipt
+                              </>
+                            )}
                           </Button>
                           <Button
                             variant="outline-warning"
                             size="sm"
                             onClick={() => handleOpenFeedback(event._id)}
                           >
+                            <i className="fas fa-comment mr-2"></i>
                             Give Feedback
                           </Button>
                         </div>
@@ -311,7 +465,10 @@ const UserDashboard = () => {
       {/* Calendar Modal */}
       <Modal
         show={showCalendar}
-        onHide={() => setShowCalendar(false)}
+        onHide={() => {
+          setShowCalendar(false);
+          logger.action("calendar_closed");
+        }}
         centered
         size="md"
       >
@@ -335,7 +492,7 @@ const UserDashboard = () => {
               <ul className="list-unstyled px-2">
                 {eventsOnSelectedDate.map((entry) => (
                   <li key={entry._id} className="mb-1 text-break">
-                    🔸 {entry.event.title}
+                    • {sanitizeInput(entry.event.title)}
                   </li>
                 ))}
               </ul>
@@ -356,10 +513,14 @@ const UserDashboard = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
       {/* Feedback Modal */}
       <Modal
         show={showFeedbackModal}
-        onHide={() => setShowFeedbackModal(false)}
+        onHide={() => {
+          setShowFeedbackModal(false);
+          logger.action("feedback_modal_closed");
+        }}
         centered
       >
         <Modal.Header closeButton>
@@ -373,22 +534,49 @@ const UserDashboard = () => {
               rows={4}
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="Enter your thoughts..."
+              placeholder="Share your experience with this event..."
+              maxLength={2000}
             />
+            <Form.Text className="text-muted">
+              {feedbackText.length}/2000 characters
+            </Form.Text>
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button
             variant="secondary"
             onClick={() => setShowFeedbackModal(false)}
+            disabled={submittingFeedback}
           >
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmitFeedback}>
-            Submit
+          <Button
+            variant="primary"
+            onClick={handleSubmitFeedback}
+            disabled={submittingFeedback || !feedbackText.trim()}
+          >
+            {submittingFeedback ? (
+              <>
+                <span className="spinner-border spinner-border-sm mr-2"></span>
+                Submitting...
+              </>
+            ) : (
+              "Submit"
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <style>{`
+          .event-day-highlight {
+          background-color: #3b82f6 !important;
+          color: white !important;
+          border-radius: 50%;
+        }
+          .event-day-highlight:hover {
+           background-color: #2563eb !important;
+        }
+      `}</style>
     </div>
   );
 };

@@ -1,45 +1,59 @@
-// routes/adminRoutes.js
 const express = require("express");
 const router = express.Router();
-
 const adminController = require("../controllers/adminController");
 const { verifyToken, isAdmin } = require("../middleware/authMiddleware");
-const upload = require("../middleware/upload");
+const {
+  generalUpload,
+  handleUploadError,
+  magicNumberValidator, // FIXED: Import magic number validator
+} = require("../middleware/uploadMiddleware");
+const { apiLimiter } = require("../middleware/rateLimit");
 
-// 🔒 Protect all admin routes
+// Protect all admin routes
 router.use(verifyToken, isAdmin);
 
-// === 📊 Admin Dashboard ===
-router.get("/stats", adminController.getAdminStats);
+// FIXED: Add rate limiting to admin routes
+router.use(apiLimiter);
 
-// === 👥 User Management ===
+// === Admin Dashboard ===
+router.get("/stats", adminController.getAdminStats);
+router.get("/dashboard-summary", adminController.getDashboardSummary);
+
+// === User Management ===
 router.get("/users", adminController.getAllUsers);
 router.put("/users/:id/role", adminController.changeUserRole);
 router.delete("/users/:id", adminController.deleteUser);
 
-// === 🎯 Event Management ===
+// === Event Management ===
 router.get("/events", adminController.getAllEvents);
+
+// FIXED: Add magic number validation to file uploads
 router.post(
   "/events",
-  upload.fields([
+  generalUpload.fields([
     { name: "image", maxCount: 1 },
     { name: "ruleBook", maxCount: 1 },
   ]),
+  magicNumberValidator, // FIXED: Validate file content
+  handleUploadError,
   adminController.createEvent
 );
+
 router.put(
   "/events/:id",
-  upload.fields([
+  generalUpload.fields([
     { name: "image", maxCount: 1 },
     { name: "ruleBook", maxCount: 1 },
   ]),
+  magicNumberValidator, // FIXED: Validate file content
+  handleUploadError,
   adminController.updateEvent
 );
+
 router.delete("/events/:id", adminController.deleteEvent);
 
-// === 📝 Registrations & Feedback Moderation ===
+// === Registrations & Feedback Moderation ===
 router.get("/registrations", adminController.getAllRegistrations);
 router.get("/feedbacks", adminController.getAllFeedback);
-router.get("/dashboard-summary", adminController.getDashboardSummary);
 
 module.exports = router;

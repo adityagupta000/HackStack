@@ -1,37 +1,64 @@
-// middleware/authMiddleware.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { HTTP_STATUS, ERROR_MESSAGES } = require("../config/constants");
 require("dotenv").config();
 
 const verifyToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    let token = req.cookies?.accessToken;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No token provided" });
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+      }
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token) {
+      return res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ message: "No token provided" });
+    }
 
-    const userId = decoded.id || decoded.user?.id || decoded.userId;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    if (!userId) {
+      return res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ message: ERROR_MESSAGES.INVALID_TOKEN });
+    }
+
     const user = await User.findById(userId).select("-password");
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ message: ERROR_MESSAGES.USER_NOT_FOUND });
     }
 
     req.user = user;
     next();
   } catch (err) {
     console.error("Auth Error:", err.message);
-    return res.status(401).json({ message: "Invalid or expired token" });
+
+    if (err.name === "TokenExpiredError") {
+      return res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ message: ERROR_MESSAGES.TOKEN_EXPIRED });
+    }
+
+    return res
+      .status(HTTP_STATUS.UNAUTHORIZED)
+      .json({ message: ERROR_MESSAGES.INVALID_TOKEN });
   }
 };
 
 const isAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== "admin") {
-    return res.status(403).json({ message: "Admin access required" });
+    return res
+      .status(HTTP_STATUS.FORBIDDEN)
+      .json({ message: ERROR_MESSAGES.FORBIDDEN });
   }
   next();
 };

@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import axiosInstance from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { sanitizeInput } from "../utils/sanitize";
+import {
+  validateEmail,
+  validatePassword,
+  validateName,
+} from "../utils/validation";
+import { handleAPIError } from "../utils/errorHandler";
+import logger from "../utils/logger";
+import { checkPasswordStrength } from "../config/security";
 
 function HackathonRegister() {
   const [formData, setFormData] = useState({
@@ -20,6 +29,7 @@ function HackathonRegister() {
   const [loading, setLoading] = useState(false);
   const [showPasswordRequirements, setShowPasswordRequirements] =
     useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(null);
 
   // Password requirements state
   const [passwordRequirements, setPasswordRequirements] = useState({
@@ -41,7 +51,14 @@ function HackathonRegister() {
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData({ ...formData, [id]: value });
+
+    // Sanitize inputs (except password)
+    let sanitizedValue = value;
+    if (id === "name" || id === "email") {
+      sanitizedValue = sanitizeInput(value);
+    }
+
+    setFormData({ ...formData, [id]: sanitizedValue });
     setErrors((prevErrors) => ({ ...prevErrors, [id]: "" }));
   };
 
@@ -55,17 +72,32 @@ function HackathonRegister() {
       number: /\d/.test(password),
       specialChar: /[@$!%*#?&]/.test(password),
     });
+
+    // Check password strength
+    if (password.length > 0) {
+      const strength = checkPasswordStrength(password);
+      setPasswordStrength(strength);
+    } else {
+      setPasswordStrength(null);
+    }
   }, [formData.password]);
 
+  // Validate fields in real-time
   useEffect(() => {
     const newValidity = {};
-    const passwordRegex =
-      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d#@$!%*?&]{8,}$/;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    newValidity.name = formData.name.trim() !== "";
-    newValidity.email = emailRegex.test(formData.email);
-    newValidity.password = passwordRegex.test(formData.password);
+    // Name validation
+    const nameValidation = validateName(formData.name);
+    newValidity.name = nameValidation.isValid;
+
+    // Email validation
+    newValidity.email = validateEmail(formData.email);
+
+    // Password validation
+    const passwordValidation = validatePassword(formData.password);
+    newValidity.password = passwordValidation.isValid;
+
+    // Confirm password validation
     newValidity.confirmPassword =
       formData.password === formData.confirmPassword &&
       formData.confirmPassword !== "";
@@ -75,45 +107,105 @@ function HackathonRegister() {
 
   const validateForm = () => {
     const newErrors = {};
-    const password = formData.password.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!formData.name) newErrors.name = "Name is required";
-    if (!formData.email) newErrors.email = "Email is required";
-    else if (!emailRegex.test(formData.email))
+    // Validate name
+    const nameValidation = validateName(formData.name);
+    if (!nameValidation.isValid) {
+      newErrors.name = nameValidation.error;
+    }
+
+    // Validate email
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+    } else if (!validateEmail(formData.email)) {
       newErrors.email = "Invalid email address";
-    if (!password) newErrors.password = "Password is required";
-    if (password !== formData.confirmPassword.trim())
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      newErrors.password = passwordValidation.errors.join(". ");
+    }
+
+    // Validate confirm password
+    if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
+    }
 
     return newErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const formErrors = validateForm();
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      logger.warn("Registration form validation failed", {
+        errors: formErrors,
+      });
       return;
     }
 
     setLoading(true);
+
     try {
-      await axios.post("http://localhost:5000/api/auth/register", formData);
+      // Sanitize data before sending
+      const sanitizedData = {
+        name: sanitizeInput(formData.name.trim()),
+        email: sanitizeInput(formData.email.trim().toLowerCase()),
+        password: formData.password, // Don't sanitize password
+      };
+
+      // DEBUG: Check CSRF token
+      const csrfToken = sessionStorage.getItem("csrfToken");
+      console.log("🔍 CSRF Token Debug:");
+      console.log("Token from sessionStorage:", csrfToken);
+      console.log(
+        "axiosInstance headers:",
+        axiosInstance.defaults.headers.common
+      );
+
+      await axiosInstance.post("/auth/register", sanitizedData);
+
       setMessage("Registration successful! Redirecting to login...");
       setMessageType("success");
       setErrors({});
+
+      logger.info("Registration successful", {
+        email: sanitizedData.email,
+        name: sanitizedData.name,
+      });
+
+      // Log user action
+      logger.action("user_register", {
+        email: sanitizedData.email,
+      });
+
       setTimeout(() => {
         navigate("/login");
       }, 2500);
     } catch (error) {
-      setMessage(
+      console.log("❌ Registration Error:", error.response?.data);
+
+      const errorMessage =
         error.response && error.response.data.message === "User already exists"
           ? "User already exists. Please use a different email."
-          : "Error registering user"
-      );
+          : error.response?.data?.message || "Error registering user";
+
+      setMessage(errorMessage);
       setMessageType("error");
       setErrors({});
+
+      logger.error("Registration failed", error, {
+        email: formData.email,
+        errorMessage,
+      });
+
+      handleAPIError(error, {
+        showToast: false, 
+        fallbackMessage: "Registration failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -179,6 +271,8 @@ function HackathonRegister() {
                 value={formData.name}
                 onChange={handleChange}
                 required
+                autoComplete="name"
+                maxLength={100}
               />
               <label className="floating-label" htmlFor="name">
                 Name
@@ -207,6 +301,8 @@ function HackathonRegister() {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                autoComplete="email"
+                maxLength={255}
               />
               <label className="floating-label" htmlFor="email">
                 Email address
@@ -239,6 +335,9 @@ function HackathonRegister() {
                 onFocus={() => setShowPasswordRequirements(true)}
                 onBlur={() => setShowPasswordRequirements(false)}
                 required
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={128}
               />
               <label className="floating-label" htmlFor="password">
                 Password
@@ -247,6 +346,43 @@ function HackathonRegister() {
                 <i className="fa fa-check text-success validation-icon"></i>
               )}
             </div>
+
+            {/* Password Strength Indicator */}
+            {passwordStrength && formData.password.length > 0 && (
+              <div className="mt-2">
+                <div className="d-flex align-items-center justify-content-between mb-1">
+                  <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                    Password Strength:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                      color: passwordStrength.color,
+                    }}
+                  >
+                    {passwordStrength.strength.toUpperCase()}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    height: "4px",
+                    backgroundColor: "#e5e7eb",
+                    borderRadius: "2px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${passwordStrength.percentage}%`,
+                      backgroundColor: passwordStrength.color,
+                      transition: "width 0.3s ease, background-color 0.3s ease",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Password Requirements Checklist */}
             {(showPasswordRequirements || formData.password) && (
@@ -365,7 +501,7 @@ function HackathonRegister() {
                           : "#dc3545",
                       }}
                     >
-                      One special character (@$!%*?&)
+                      One special character (@$!%*#?&)
                     </span>
                   </div>
                 </div>
@@ -394,6 +530,9 @@ function HackathonRegister() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={128}
               />
               <label className="floating-label" htmlFor="confirmPassword">
                 Confirm Password
@@ -459,6 +598,7 @@ function HackathonRegister() {
           background: #fff;
           transition: 0.2s ease all;
           color: #3D85D8;
+          pointer-events: none;
         }
         .floating-input {
           font-size: 14px;
@@ -496,12 +636,17 @@ function HackathonRegister() {
         a {
           text-decoration: none;
           font-weight: bold;
-          border-bottom: 1px solid transparent; 
+          border-bottom: 1px solid transparent;
           transition: border-bottom 0.3s ease-in-out, color 0.3s ease-in-out;
         }
         a:hover {
           color: blue;
-          border-bottom: 1px solid red; 
+          border-bottom: 1px solid red;
+        }
+        .password-requirements {
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 4px;
         }
       `}</style>
     </div>

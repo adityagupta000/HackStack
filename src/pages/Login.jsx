@@ -2,19 +2,27 @@ import React, { useState, useEffect } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { sanitizeInput } from "../utils/sanitize";
+import { validateEmail } from "../utils/validation";
+import { handleAPIError, isRateLimitError } from "../utils/errorHandler";
+import logger from "../utils/logger";
+import { ClientRateLimiter } from "../config/security";
+import toast from "react-hot-toast";
+
+// Client-side rate limiter
+const loginLimiter = new ClientRateLimiter(5, 5 * 60 * 1000); // 5 attempts per 5 minutes
 
 const Login = () => {
   const navigate = useNavigate();
-
   const savedEmail = localStorage.getItem("savedEmail") || "";
-  const savedPassword = localStorage.getItem("savedPassword") || "";
+
   const [formData, setFormData] = useState({
     email: savedEmail,
-    password: savedPassword,
+    password: "",
   });
   const [rememberMe, setRememberMe] = useState(savedEmail !== "");
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState(""); // "success" or "error"
+  const [messageType, setMessageType] = useState("");
   const [loading, setLoading] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
   const [showMessage, setShowMessage] = useState(false);
@@ -39,32 +47,89 @@ const Login = () => {
   }, [lockoutTime]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
+    const { id, value } = e.target;
+
+    // Sanitize email input
+    const sanitizedValue = id === "email" ? sanitizeInput(value) : value;
+
+    setFormData({ ...formData, [id]: sanitizedValue });
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Client-side rate limiting check
+    const clientId = `login_${formData.email}`;
+    if (!loginLimiter.isAllowed(clientId)) {
+      const timeUntilReset = Math.ceil(
+        loginLimiter.getTimeUntilReset(clientId) / 1000
+      );
+      setMessage(
+        `Too many attempts. Please try again in ${timeUntilReset} seconds.`
+      );
+      setMessageType("error");
+      setLockoutTime(timeUntilReset);
+      return;
+    }
+
+    const sanitizedEmail = sanitizeInput(formData.email.trim());
+    if (!validateEmail(sanitizedEmail)) {
+      setMessage("Please enter a valid email address");
+      setMessageType("error");
+      logger.warn("Invalid email format attempted", { email: sanitizedEmail });
+      return;
+    }
+
+    if (!formData.password || formData.password.length < 8) {
+      setMessage("Password must be at least 8 characters");
+      setMessageType("error");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await axiosInstance.post("/auth/login", formData, {
-        withCredentials: true, // ⬅️ Important for cookie
-      });
+      const response = await axiosInstance.post(
+        "/auth/login",
+        {
+          email: sanitizedEmail,
+          password: formData.password,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
-      saveAuth(response.data.accessToken, response.data.role);
+      if (response.data.user?.id) {
+        sessionStorage.setItem("userId", response.data.user.id); // Use sessionStorage, not localStorage
+        sessionStorage.setItem("userRole", response.data.role);
+        sessionStorage.setItem("userName", response.data.user.name);
+        logger.setUserId(response.data.user.id);
+      }
 
       if (rememberMe) {
-        localStorage.setItem("savedEmail", formData.email);
-        localStorage.setItem("savedPassword", formData.password);
+        localStorage.setItem("savedEmail", sanitizedEmail);
       } else {
         localStorage.removeItem("savedEmail");
-        localStorage.removeItem("savedPassword");
       }
 
       setMessage("Login successful");
       setAttempts(0);
       setMessageType("success");
-      setFormData({ email: "", password: "" });
+      setFormData({ email: formData.email, password: "" });
+
+      loginLimiter.reset(clientId);
+
+      logger.info("Login successful", {
+        email: sanitizedEmail,
+        role: response.data.role,
+      });
+
+      logger.action("user_login", {
+        email: sanitizedEmail,
+        role: response.data.role,
+      });
 
       setTimeout(() => {
         setLoading(false);
@@ -73,17 +138,38 @@ const Login = () => {
     } catch (error) {
       setAttempts((prevAttempts) => prevAttempts + 1);
 
-      if (error.response?.status === 429) {
-        const retryAfter = error.response.headers["retry-after"] || 300;
+      // Handle rate limiting from server
+      if (isRateLimitError(error)) {
+        const retryAfter = error.response?.headers["retry-after"] || 300;
         setLockoutTime(retryAfter);
         setMessage(`Too many attempts. Try again in ${retryAfter} seconds.`);
-      } else if (attempts + 1 >= 3) {
-        setMessage("Too many failed attempts. Please register.");
-      } else {
-        setMessage("Invalid credentials. Please try again.");
-      }
+        setMessageType("error");
 
-      setMessageType("error");
+        logger.warn("Server rate limit hit", {
+          email: sanitizedEmail,
+          retryAfter,
+        });
+      } else {
+        // Generic error handling
+        const errorMessage =
+          error.response?.data?.message ||
+          "Invalid credentials. Please try again.";
+
+        setMessage(errorMessage);
+        setMessageType("error");
+
+        logger.warn("Login failed", {
+          email: sanitizedEmail,
+          attempts: attempts + 1,
+          error: errorMessage,
+        });
+
+        if (attempts + 1 >= 3) {
+          setMessage(
+            "Too many failed attempts. Please register or reset password."
+          );
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -145,6 +231,8 @@ const Login = () => {
               value={formData.email}
               onChange={handleChange}
               required
+              autoComplete="email"
+              maxLength={255}
             />
             <label className="floating-label" htmlFor="email">
               Email address
@@ -160,6 +248,9 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               required
+              autoComplete="current-password"
+              minLength={8}
+              maxLength={128}
             />
             <label className="floating-label" htmlFor="password">
               Password
@@ -189,7 +280,7 @@ const Login = () => {
           <div className="d-flex justify-content-center">
             <button
               type="submit"
-              className="btn btn-outline-danger mb-3 mt-3 d-flex align-items-center"
+              className="btn btn-outline-dark mb-3 mt-3 d-flex align-items-center"
               disabled={lockoutTime > 0 || loading}
             >
               {loading ? (
@@ -228,6 +319,7 @@ const Login = () => {
           background: #fff;
           transition: 0.2s ease all;
           color: #3D85D8;
+          pointer-events: none;
         }
         .floating-input {
           font-size: 14px;
@@ -248,17 +340,15 @@ const Login = () => {
           font-size: 12px;
           color: #3D85D8;
         }
-          a {
-            text-decoration: none;
-            font-wight: bold;
-            border-bottom: 1px solid transparent; 
-            transition: border-bottom 0.3s ease-in-out, color 0.3s ease-in-out;
-          }
-
-          a:hover {
-            color: blue;
-            border-bottom: 1px solid red; 
-          }
+        a {
+          text-decoration: none;
+          border-bottom: 1px solid transparent;
+          transition: border-bottom 0.3s ease-in-out, color 0.3s ease-in-out;
+        }
+        a:hover {
+          color: blue;
+          border-bottom: 1px solid red;
+        }
       `}</style>
     </div>
   );
