@@ -1,31 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useState, useEffect } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const HomeScreen = () => {
-  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [time, setTime] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
 
   useEffect(() => {
     const updateTimer = () => {
-      const storedTargetTime = localStorage.getItem('targetTime');
+      const storedTargetTime = localStorage.getItem("targetTime");
       let targetTime;
 
       if (storedTargetTime) {
         targetTime = parseInt(storedTargetTime, 10);
-        console.log("Stored target time:", targetTime);
       } else {
         targetTime = new Date().getTime() + 10 * 24 * 60 * 60 * 1000; // 10 days from now
-        localStorage.setItem('targetTime', targetTime);
-        console.log("New target time set:", targetTime);
+        localStorage.setItem("targetTime", targetTime);
       }
 
       const now = new Date().getTime();
       const distance = targetTime - now;
-      console.log("Current time:", now);
-      console.log("Time distance:", distance);
 
       if (distance >= 0) {
         const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const hours = Math.floor(
+          (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
         const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
@@ -45,7 +48,8 @@ const HomeScreen = () => {
     <main className="overflow-x-hidden text-white">
       <div className="container py-5">
         <h1 className="text-center mb-5">
-          <span className="text-danger ">Countdown</span> To <span className="text-info">Innovation</span>
+          <span className="text-danger ">Countdown</span> To{" "}
+          <span className="text-info">Innovation</span>
         </h1>
         <div className="row justify-content-center">
           <div className="col-6 col-md-4 col-lg-2 text-center mb-4">

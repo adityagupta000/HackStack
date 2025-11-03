@@ -5,17 +5,22 @@ require("dotenv").config();
 
 const verifyToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    let token = req.cookies?.accessToken;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+      }
+    }
+
+    if (!token) {
       return res
         .status(HTTP_STATUS.UNAUTHORIZED)
         .json({ message: "No token provided" });
     }
 
-    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const userId = decoded.userId;
 
     if (!userId) {

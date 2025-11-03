@@ -151,7 +151,7 @@ exports.getEventRegistrants = async (req, res) => {
   }
 };
 
-// FIXED: Enhanced PDF generation with better security
+// FIXED: Enhanced PDF generation with improved layout (NO OVERLAPPING)
 exports.generatePdfReceipt = async (req, res) => {
   try {
     const { registrationId } = req.params;
@@ -219,10 +219,10 @@ exports.generatePdfReceipt = async (req, res) => {
     // Title
     doc
       .font("Helvetica-Bold")
-      .fontSize(20)
+      .fontSize(22)
       .fillColor("#2c3e50")
       .text("Event Registration Receipt", { align: "center" })
-      .moveDown(1.5);
+      .moveDown(2);
 
     // User Info Section
     doc
@@ -230,16 +230,18 @@ exports.generatePdfReceipt = async (req, res) => {
       .fontSize(14)
       .fillColor("#444")
       .text("Participant Information")
-      .moveDown(0.5);
+      .moveDown(0.8);
 
     doc
       .font("Helvetica")
-      .fontSize(12)
+      .fontSize(11)
       .fillColor("black")
       .text(`Registration ID: ${registration._id}`)
+      .moveDown(0.3)
       .text(`Name: ${registration.user.name}`)
+      .moveDown(0.3)
       .text(`Email: ${registration.user.email}`)
-      .moveDown(1);
+      .moveDown(1.5);
 
     // Event Info Section
     doc
@@ -247,95 +249,114 @@ exports.generatePdfReceipt = async (req, res) => {
       .fontSize(14)
       .fillColor("#444")
       .text("Event Details")
-      .moveDown(0.5);
+      .moveDown(0.8);
 
     doc
       .font("Helvetica")
-      .fontSize(12)
+      .fontSize(11)
       .fillColor("black")
       .text(`Title: ${registration.event.title}`)
+      .moveDown(0.3)
       .text(`Domain: ${registration.event.category || "N/A"}`)
+      .moveDown(0.3)
       .text(`Date: ${registration.event.date || "N/A"}`)
+      .moveDown(0.3)
       .text(`Time: ${registration.event.time || "N/A"}`)
+      .moveDown(0.3)
       .text(`Price: ₹${registration.event.price || 0}`)
+      .moveDown(0.3)
       .text(
         `Registered On: ${new Date(
           registration.registeredAt || registration.createdAt
         ).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`
       )
+      .moveDown(0.3)
       .text(`Status: ${registration.status.toUpperCase()}`)
+      .moveDown(0.3)
       .text(`Payment Status: ${registration.paymentStatus.toUpperCase()}`)
-      .moveDown();
+      .moveDown(1.5);
 
     // Divider
     doc
       .moveTo(doc.page.margins.left, doc.y)
       .lineTo(doc.page.width - doc.page.margins.right, doc.y)
       .strokeColor("#cccccc")
+      .lineWidth(1)
       .stroke()
-      .moveDown();
+      .moveDown(1.5);
 
-    // QR Code Section
+    // QR Code Section Header
     doc
       .font("Helvetica-Bold")
-      .fontSize(12)
+      .fontSize(13)
       .fillColor("black")
       .text("Verification QR Code", { align: "center" })
-      .moveDown(0.5);
+      .moveDown(0.8);
 
     doc
       .font("Helvetica")
       .fontSize(10)
+      .fillColor("#555")
       .text("Scan this code at the event venue for verification:", {
         align: "center",
       })
-      .moveDown(0.5);
+      .moveDown(1);
 
-    // Center the QR code
+    // Center the QR code and track position
     const qrSize = 150;
     const pageWidth =
       doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const qrX = doc.page.margins.left + (pageWidth - qrSize) / 2;
+    const qrYPosition = doc.y; // Store Y position before adding image
 
-    doc.image(qrImage, qrX, doc.y, {
+    doc.image(qrImage, qrX, qrYPosition, {
       width: qrSize,
       height: qrSize,
     });
 
-    doc.moveDown(8); // Move down to account for QR code height
+    // Move cursor below the QR code (qrSize + small margin)
+    doc.y = qrYPosition + qrSize + 15;
 
     // Verification URL
     doc
       .fontSize(9)
-      .fillColor("blue")
+      .fillColor("#666")
       .text("Or visit:", { align: "center" })
+      .moveDown(0.3);
+
+    doc
+      .fontSize(8)
+      .fillColor("blue")
       .text(qrData, {
         align: "center",
         link: qrData,
         underline: true,
       })
-      .fillColor("black");
+      .fillColor("black")
+      .moveDown(2);
 
-    // Footer
-    doc.moveDown(2);
+    // Footer Divider
     doc
       .moveTo(doc.page.margins.left, doc.y)
       .lineTo(doc.page.width - doc.page.margins.right, doc.y)
       .strokeColor("#cccccc")
+      .lineWidth(1)
       .stroke()
-      .moveDown(0.5);
+      .moveDown(1);
 
+    // Footer Text
     doc
-      .fontSize(10)
+      .fontSize(9)
       .fillColor("gray")
       .text("This is an auto-generated receipt. No signature required.", {
         align: "center",
       })
-      .moveDown(0.3)
+      .moveDown(0.5)
       .text("Please bring this receipt to the event venue.", {
         align: "center",
       })
-      .moveDown(0.3)
+      .moveDown(0.5)
+      .fontSize(8)
       .text(
         `Generated on: ${new Date().toLocaleString("en-IN", {
           timeZone: "Asia/Kolkata",

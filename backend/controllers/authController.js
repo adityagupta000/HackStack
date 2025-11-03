@@ -299,24 +299,34 @@ exports.login = async (req, res) => {
       requestId: req.id,
     });
 
-    // FIXED: Enhanced cookie security
-    const cookieOptions = {
+    const refreshTokenOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      path: "/api/auth/refreshToken",
+      path: "/",
       maxAge: TIME_CONSTANTS.SEVEN_DAYS,
     };
 
-    res.cookie("refreshToken", refreshToken, cookieOptions).json({
-      accessToken,
-      role: user.role,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
-    });
+    const accessTokenOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      path: "/",
+      maxAge: TIME_CONSTANTS.ONE_HOUR,
+    };
+
+    res
+      .cookie("refreshToken", refreshToken, refreshTokenOptions)
+      .cookie("accessToken", accessToken, accessTokenOptions)
+      .json({
+        success: true,
+        role: user.role,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+        },
+      });
   } catch (error) {
     logger.error("Login error", {
       error: error.message,
@@ -442,10 +452,29 @@ exports.refreshToken = async (req, res) => {
       maxAge: TIME_CONSTANTS.SEVEN_DAYS,
     };
 
-    res.cookie("refreshToken", newRefreshToken, cookieOptions).json({
-      accessToken: newAccessToken,
-      role: user.role,
-    });
+    const refreshTokenOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      path: "/",
+      maxAge: TIME_CONSTANTS.SEVEN_DAYS,
+    };
+
+    const accessTokenOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      path: "/",
+      maxAge: TIME_CONSTANTS.ONE_HOUR,
+    };
+
+    res
+      .cookie("refreshToken", newRefreshToken, refreshTokenOptions)
+      .cookie("accessToken", newAccessToken, accessTokenOptions)
+      .json({
+        success: true,
+        role: user.role,
+      });
   } catch (err) {
     logger.error("Token refresh error", {
       error: err.message,
@@ -741,12 +770,18 @@ exports.logout = async (req, res) => {
       });
     }
 
-    // Clear cookie
     res.clearCookie("refreshToken", {
       httpOnly: true,
       sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
       secure: process.env.NODE_ENV === "production",
-      path: "/api/auth/refreshToken",
+      path: "/",
+    });
+
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
     });
 
     return res

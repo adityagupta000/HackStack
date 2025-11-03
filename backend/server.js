@@ -70,8 +70,18 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["Content-Disposition"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-request-id",
+    "x-csrf-token",
+  ],
+  exposedHeaders: [
+    "Content-Disposition",
+    "X-Content-Type-Options",
+    "X-Frame-Options",
+    "Strict-Transport-Security",
+  ],
   maxAge: 600,
 };
 
@@ -81,7 +91,13 @@ if (!process.env.COOKIE_SECRET) {
   process.exit(1);
 }
 
-app.use(cookieParser(process.env.COOKIE_SECRET));
+app.use(
+  cookieParser(process.env.COOKIE_SECRET, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+  })
+);
 
 const csrfProtection = csrf({
   cookie: {
