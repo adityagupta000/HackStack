@@ -1,5 +1,23 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../utils/axiosInstance";
+import { sanitizeInput, sanitizeFilename } from "../../utils/sanitize";
+import {
+  validateEventTitle,
+  validateDescription,
+  validatePrice,
+  validateCategory,
+  validateDate,
+  validateTime,
+  validateRegistrationFields,
+} from "../../utils/validation";
+import {
+  validateImageFile,
+  validatePDFFile,
+  formatFileSize,
+} from "../../utils/fileValidator";
+import { handleAPIError } from "../../utils/errorHandler";
+import logger from "../../utils/logger";
+import toast from "react-hot-toast";
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -74,7 +92,7 @@ const Toast = ({ message, type, onClose }) => {
 
   return (
     <div
-      className={`fixed top-4 right-4 z-50 max-w-md w-full shadow-lg rounded-lg p-4 ${getToastStyles()} transform transition-all duration-300 ease-in-out`}
+      className={`fixed top-4 right-4 z-50 max-w-md w-full shadow-lg rounded-lg p-4 ${getToastStyles()} transition-all duration-300`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -126,9 +144,9 @@ const EventManagement = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState([]);
-  const [message, setMessage] = useState("");
-  const [errorDetails, setErrorDetails] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Toast functions
   const showToast = (message, type = "info") => {
@@ -140,58 +158,19 @@ const EventManagement = () => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
-  const getErrorMessage = (error) => {
-    if (error.response) {
-      const { status, data } = error.response;
-
-      // Handle validation errors
-      if (status === 400 && data.errors) {
-        const validationErrors = data.errors.map(
-          (err) => `${err.path}: ${err.message}`
-        );
-        return validationErrors.join(", ");
-      }
-
-      // Handle specific error messages
-      if (data.message) {
-        return data.message;
-      }
-
-      // Handle different status codes
-      switch (status) {
-        case 401:
-          return "Unauthorized. Please login again.";
-        case 403:
-          return "Access denied. Admin privileges required.";
-        case 404:
-          return "Resource not found.";
-        case 409:
-          return "Conflict. Event might already exist.";
-        case 413:
-          return "File too large. Please reduce file size.";
-        case 422:
-          return "Invalid data format. Please check your inputs.";
-        case 500:
-          return "Server error. Please try again later.";
-        default:
-          return `Error ${status}: ${data.error || "Unknown error"}`;
-      }
-    } else if (error.request) {
-      return "Network error. Please check your connection.";
-    } else {
-      return error.message || "An unexpected error occurred.";
-    }
-  };
-
   const fetchEvents = async () => {
     try {
       const res = await axiosInstance.get("/admin/events", {
         params: { search },
       });
       setEvents(res.data);
+
+      logger.info("Events fetched in admin panel", { count: res.data.length });
     } catch (err) {
-      console.error("Failed to fetch events:", err);
-      showToast(getErrorMessage(err), "error");
+      logger.error("Failed to fetch events", err);
+      handleAPIError(err, {
+        fallbackMessage: "Failed to fetch events",
+      });
     }
   };
 
@@ -200,25 +179,82 @@ const EventManagement = () => {
   }, [search]);
 
   const handleInput = (e) => {
-    setNewEvent({ ...newEvent, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const sanitized = sanitizeInput(value);
+    setNewEvent({ ...newEvent, [name]: sanitized });
+
+    // Clear validation error for this field
+    setValidationErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    setSelectedFile(file);
-    if (file) {
+
+    if (!file) {
+      setSelectedFile(null);
+      setImagePreview(null);
+      return;
+    }
+
+    try {
+      // Validate file
+      const validation = await validateImageFile(file);
+
+      if (!validation.isValid) {
+        showToast(validation.error, "error");
+        e.target.value = "";
+        return;
+      }
+
+      setSelectedFile(file);
+
+      // Generate preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
-    } else {
-      setImagePreview(null);
+
+      logger.info("Image file selected", {
+        fileName: file.name,
+        size: formatFileSize(file.size),
+      });
+    } catch (error) {
+      logger.error("File validation error", error);
+      showToast("Error validating file", "error");
+      e.target.value = "";
     }
   };
 
-  const handleRuleBookChange = (e) => {
-    setRuleBook(e.target.files[0]);
+  const handleRuleBookChange = async (e) => {
+    const file = e.target.files[0];
+
+    if (!file) {
+      setRuleBook(null);
+      return;
+    }
+
+    try {
+      // Validate PDF
+      const validation = await validatePDFFile(file);
+
+      if (!validation.isValid) {
+        showToast(validation.error, "error");
+        e.target.value = "";
+        return;
+      }
+
+      setRuleBook(file);
+
+      logger.info("Rule book file selected", {
+        fileName: file.name,
+        size: formatFileSize(file.size),
+      });
+    } catch (error) {
+      logger.error("Rule book validation error", error);
+      showToast("Error validating rule book", "error");
+      e.target.value = "";
+    }
   };
 
   const resetForm = () => {
@@ -226,53 +262,81 @@ const EventManagement = () => {
     setSelectedFile(null);
     setRuleBook(null);
     setEditId(null);
-    setMessage("");
-    setErrorDetails("");
+    setImagePreview(null);
+    setValidationErrors({});
 
     const imageInput = document.getElementById("imageInput");
     const ruleBookInput = document.getElementById("ruleBookInput");
     if (imageInput) imageInput.value = "";
     if (ruleBookInput) ruleBookInput.value = "";
+
+    logger.action("event_form_reset");
   };
 
   const validateForm = () => {
-    if (!newEvent.title.trim()) {
-      showToast("Event title is required.", "warning");
-      return false;
+    const errors = {};
+
+    // Validate title
+    const titleValidation = validateEventTitle(newEvent.title);
+    if (!titleValidation.isValid) {
+      errors.title = titleValidation.error;
     }
-    if (!newEvent.date.trim()) {
-      showToast("Event date is required.", "warning");
-      return false;
+
+    // Validate date
+    const dateValidation = validateDate(newEvent.date);
+    if (!dateValidation.isValid) {
+      errors.date = dateValidation.error;
     }
-    if (!newEvent.time.trim()) {
-      showToast("Event time is required.", "warning");
-      return false;
+
+    // Validate time
+    const timeValidation = validateTime(newEvent.time);
+    if (!timeValidation.isValid) {
+      errors.time = timeValidation.error;
     }
-    if (!newEvent.description.trim()) {
-      showToast("Event description is required.", "warning");
-      return false;
+
+    // Validate description
+    const descValidation = validateDescription(newEvent.description);
+    if (!descValidation.isValid) {
+      errors.description = descValidation.error;
     }
-    if (!newEvent.category) {
-      showToast("Please select an event category.", "warning");
-      return false;
+
+    // Validate category
+    const catValidation = validateCategory(newEvent.category);
+    if (!catValidation.isValid) {
+      errors.category = catValidation.error;
     }
+
+    // Validate price
+    const priceValidation = validatePrice(newEvent.price);
+    if (!priceValidation.isValid) {
+      errors.price = priceValidation.error;
+    }
+
+    // Validate image (only for new events)
     if (!editId && !selectedFile) {
-      showToast("Event image is required.", "warning");
-      return false;
+      errors.image = "Event image is required";
     }
-    if (!newEvent.price) {
-      showToast("Event price is required.", "warning");
-      return false;
+
+    // Validate registration fields
+    const fieldsValidation = validateRegistrationFields(
+      newEvent.registrationFields
+    );
+    if (!fieldsValidation.isValid) {
+      errors.registrationFields = fieldsValidation.error;
     }
-    return true;
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
-    setErrorDetails("");
 
-    if (!validateForm()) return;
+    // Validate form
+    if (!validateForm()) {
+      showToast("Please fix validation errors", "error");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("title", newEvent.title.trim());
@@ -282,56 +346,63 @@ const EventManagement = () => {
     formData.append("category", newEvent.category.trim());
     formData.append("price", newEvent.price.toString());
 
-    // Always include registration fields with fallback
+    // Registration fields
     const registrationFields =
       newEvent.registrationFields?.length > 0
         ? newEvent.registrationFields
         : ["Name", "Email"];
     formData.append("registrationFields", JSON.stringify(registrationFields));
 
-    // Attach image (new upload)
+    // Attach image
     if (selectedFile) {
       formData.append("image", selectedFile);
     } else if (editId && newEvent.imageUrl) {
-      formData.append("existingImage", newEvent.imageUrl); // for backend fallback
+      formData.append("existingImage", newEvent.imageUrl);
     }
 
-    // Attach rule book (if not uploading new one)
+    // Attach rule book
     if (!ruleBook && editId && newEvent.ruleBookUrl) {
-      formData.append("existingRuleBook", newEvent.ruleBookUrl); // for backend fallback
+      formData.append("existingRuleBook", newEvent.ruleBookUrl);
     }
 
     setLoading(true);
+    setUploadProgress(0);
 
     try {
       let response;
 
+      const config = {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percentCompleted);
+        },
+      };
+
       if (editId) {
-        // PUT for edit
         response = await axiosInstance.put(
           `/admin/events/${editId}`,
           formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
+          config
         );
+
+        logger.info("Event updated", { eventId: editId });
+        logger.action("event_updated", { eventId: editId });
       } else {
-        // POST for create
-        response = await axiosInstance.post("/events", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        response = await axiosInstance.post("/events", formData, config);
+
+        logger.info("Event created", { eventId: response.data._id });
+        logger.action("event_created");
       }
 
       if (response.status === 200 || response.status === 201) {
         const eventId = response.data.event?._id || response.data._id;
 
-        // Upload ruleBook only when:
-        // - new ruleBook selected
-        // - AND either creating new OR editing and uploading new one
+        // Upload ruleBook if provided
         if (ruleBook) {
           try {
             const ruleBookForm = new FormData();
@@ -348,59 +419,45 @@ const EventManagement = () => {
             );
 
             if (ruleBookResponse.status === 200) {
-              setMessage("Event and rule book uploaded successfully!");
+              showToast(
+                "Event and rule book uploaded successfully!",
+                "success"
+              );
             }
           } catch (ruleBookError) {
-            console.error("Rule book upload error:", ruleBookError);
-            showToast("Event updated, but rule book upload failed.", "warning");
-            setErrorDetails(
-              ruleBookError.response?.data?.message || ruleBookError.message
-            );
+            logger.error("Rule book upload error", ruleBookError);
+            showToast("Event updated, but rule book upload failed", "warning");
           }
+        } else {
+          showToast(
+            editId
+              ? "Event updated successfully!"
+              : "Event added successfully!",
+            "success"
+          );
         }
 
-        showToast(
-          editId ? "Event updated successfully!" : "Event added successfully!",
-          "success"
-        );
-        setMessage(
-          editId ? "Event updated successfully!" : "Event added successfully!"
-        );
         resetForm();
         fetchEvents();
       }
     } catch (err) {
-      console.error("Failed to submit event:", err);
-      setMessage(editId ? "Failed to update event." : "Failed to add event.");
+      logger.error("Event submission failed", err, {
+        eventId: editId,
+        isEdit: !!editId,
+      });
+
       showToast(
-        editId ? "Failed to update event." : "Failed to add event.",
+        editId ? "Failed to update event" : "Failed to add event",
         "error"
       );
 
-      if (err.response) {
-        const categoryError = err.response.data?.errors?.find(
-          (error) => error.path === "category"
-        );
-        if (categoryError) {
-          setMessage(
-            "Invalid category selected. Please choose a valid category."
-          );
-        }
-
-        setErrorDetails(
-          `Server error: ${err.response.status} - ${JSON.stringify(
-            err.response.data
-          )}`
-        );
-      } else if (err.request) {
-        setErrorDetails(
-          "No response received from server. Please check if the server is running."
-        );
-      } else {
-        setErrorDetails(`Request error: ${err.message}`);
-      }
+      handleAPIError(err, {
+        showToast: false,
+        fallbackMessage: "Event submission failed",
+      });
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -413,16 +470,22 @@ const EventManagement = () => {
       category: event.category || "",
       price: event.price || "",
       registrationFields: event.registrationFields || [],
-      imageUrl: event.image || "", // important for edit
-      ruleBookUrl: event.ruleBook || "", // important for edit
+      imageUrl: event.image || "",
+      ruleBookUrl: event.ruleBook || "",
     });
 
     setEditId(event._id);
     setSelectedFile(null);
     setRuleBook(null);
-    setMessage("");
-    setErrorDetails("");
+    setImagePreview(null);
+    setValidationErrors({});
+
     showToast("Event loaded for editing", "info");
+
+    logger.action("event_edit_started", { eventId: event._id });
+
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
@@ -430,16 +493,22 @@ const EventManagement = () => {
       !window.confirm(
         "Are you sure you want to delete this event? This action cannot be undone."
       )
-    )
+    ) {
       return;
+    }
 
     try {
       await axiosInstance.delete(`/admin/events/${id}`);
       showToast("Event deleted successfully!", "success");
       fetchEvents();
+
+      logger.info("Event deleted", { eventId: id });
+      logger.action("event_deleted", { eventId: id });
     } catch (err) {
-      console.error("Failed to delete:", err);
-      showToast("Failed to delete event: " + getErrorMessage(err), "error");
+      logger.error("Event deletion failed", err, { eventId: id });
+      handleAPIError(err, {
+        fallbackMessage: "Failed to delete event",
+      });
     }
   };
 
@@ -465,75 +534,119 @@ const EventManagement = () => {
         onSubmit={handleSubmit}
         className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8"
       >
+        {/* Title */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Event Title
+            Event Title <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             name="title"
             value={newEvent.title}
             onChange={handleInput}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              validationErrors.title
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
             placeholder="Enter event title"
             required
+            maxLength={200}
           />
+          {validationErrors.title && (
+            <p className="text-red-500 text-xs mt-1">
+              {validationErrors.title}
+            </p>
+          )}
         </div>
 
+        {/* Date */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Event Date
+            Event Date <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             name="date"
             value={newEvent.date}
             onChange={handleInput}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              validationErrors.date
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
             placeholder="e.g. 13 July, 2025"
             required
           />
+          {validationErrors.date && (
+            <p className="text-red-500 text-xs mt-1">{validationErrors.date}</p>
+          )}
         </div>
 
+        {/* Time */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Event Time
+            Event Time <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             name="time"
             value={newEvent.time}
             onChange={handleInput}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="e.g. 14:00"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              validationErrors.time
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
+            placeholder="e.g. 14:00 or 2:00 PM"
             required
           />
+          {validationErrors.time && (
+            <p className="text-red-500 text-xs mt-1">{validationErrors.time}</p>
+          )}
         </div>
 
+        {/* Price */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Event Price
+            Event Price <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
             name="price"
             value={newEvent.price}
             onChange={handleInput}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              validationErrors.price
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
             placeholder="Enter price or 0 for free"
             required
+            min="0"
+            max="1000000"
           />
+          {validationErrors.price && (
+            <p className="text-red-500 text-xs mt-1">
+              {validationErrors.price}
+            </p>
+          )}
         </div>
 
+        {/* Category */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Event Category
+            Event Category <span className="text-red-500">*</span>
           </label>
           <select
             name="category"
             value={newEvent.category}
             onChange={handleInput}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              validationErrors.category
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
             required
           >
             <option value="">Select Category</option>
@@ -543,50 +656,102 @@ const EventManagement = () => {
               </option>
             ))}
           </select>
+          {validationErrors.category && (
+            <p className="text-red-500 text-xs mt-1">
+              {validationErrors.category}
+            </p>
+          )}
         </div>
 
+        {/* Image */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Event Image
+            Event Image {!editId && <span className="text-red-500">*</span>}
           </label>
           <input
             type="file"
             id="imageInput"
             accept="image/*"
             onChange={handleFileChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <small className="text-gray-500 text-sm">
-            Supported formats: JPG, PNG, GIF. Max size: 5MB
+            Supported: JPG, PNG, GIF, WebP. Max: 5MB
           </small>
+          {validationErrors.image && (
+            <p className="text-red-500 text-xs mt-1">
+              {validationErrors.image}
+            </p>
+          )}
         </div>
 
+        {/* Image Preview */}
         {imagePreview && (
           <div className="mt-2">
-            <p className="text-sm text-gray-600">New Image Preview:</p>
+            <p className="text-sm text-gray-600 mb-2">New Image Preview:</p>
             <img
               src={imagePreview}
-              alt="New Event Poster Preview"
-              className="h-32 object-cover rounded border"
+              alt="Preview"
+              className="h-32 w-auto object-cover rounded border"
             />
           </div>
         )}
 
+        {editId && newEvent.imageUrl && !imagePreview && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-600 mb-2">Current Image:</p>
+            <img
+              src={
+                newEvent.imageUrl.startsWith("http")
+                  ? newEvent.imageUrl
+                  : newEvent.imageUrl.startsWith("/uploads")
+                  ? `http://localhost:5000${newEvent.imageUrl}`
+                  : `http://localhost:5000/uploads/images/${newEvent.imageUrl}`
+              }
+              alt="Current"
+              className="h-32 w-auto object-cover rounded border"
+              onError={(e) => {
+                e.target.src = "/placeholder-image.jpg";
+                console.error("Failed to load image:", newEvent.imageUrl);
+              }}
+            />
+          </div>
+        )}
+
+        {/* Description */}
         <div className="md:col-span-2">
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Description
+            Description <span className="text-red-500">*</span>
           </label>
           <textarea
             name="description"
             value={newEvent.description}
             onChange={handleInput}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              validationErrors.description
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
             placeholder="Enter event description"
             rows="4"
             required
+            maxLength={5000}
           />
+          <div className="flex justify-between items-center mt-1">
+            {validationErrors.description ? (
+              <p className="text-red-500 text-xs">
+                {validationErrors.description}
+              </p>
+            ) : (
+              <span></span>
+            )}
+            <small className="text-gray-500 text-xs">
+              {newEvent.description.length}/5000
+            </small>
+          </div>
         </div>
 
+        {/* Registration Fields */}
         <div className="md:col-span-2">
           <label className="block text-gray-700 text-sm font-medium mb-2">
             Registration Fields
@@ -600,12 +765,17 @@ const EventManagement = () => {
               }
               className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Add registration field (e.g. Name, Email)"
+              maxLength={200}
             />
             <button
               type="button"
               onClick={() => {
                 const trimmed = (newEvent._newField || "").trim();
                 if (trimmed && !newEvent.registrationFields.includes(trimmed)) {
+                  if (newEvent.registrationFields.length >= 20) {
+                    showToast("Maximum 20 fields allowed", "warning");
+                    return;
+                  }
                   setNewEvent((prev) => ({
                     ...prev,
                     registrationFields: [...prev.registrationFields, trimmed],
@@ -636,15 +806,21 @@ const EventManagement = () => {
                       ),
                     }))
                   }
-                  className="text-red-500 hover:text-red-700"
+                  className="text-red-500 hover:text-red-700 ml-1"
                 >
                   &times;
                 </button>
               </span>
             ))}
           </div>
+          {validationErrors.registrationFields && (
+            <p className="text-red-500 text-xs mt-1">
+              {validationErrors.registrationFields}
+            </p>
+          )}
         </div>
 
+        {/* Rule Book */}
         {!editId && (
           <div className="md:col-span-2">
             <label className="block text-gray-700 text-sm font-medium mb-2">
@@ -655,22 +831,25 @@ const EventManagement = () => {
               id="ruleBookInput"
               accept="application/pdf"
               onChange={handleRuleBookChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <small className="text-gray-500 text-sm">
-              PDF format only. Max size: 10MB
+              PDF format only. Max: 10MB
             </small>
           </div>
         )}
 
+        {/* Existing Rule Book */}
         {newEvent.ruleBookUrl && !ruleBook && (
-          <div className="mt-2">
+          <div className="md:col-span-2">
             <p className="text-sm text-gray-600">Current Rule Book:</p>
             <a
               href={
                 newEvent.ruleBookUrl.startsWith("http")
                   ? newEvent.ruleBookUrl
-                  : `http://localhost:5000${newEvent.ruleBookUrl}`
+                  : newEvent.ruleBookUrl.startsWith("/uploads")
+                  ? `http://localhost:5000${newEvent.ruleBookUrl}`
+                  : `http://localhost:5000/uploads/rulebooks/${newEvent.ruleBookUrl}`
               }
               target="_blank"
               rel="noopener noreferrer"
@@ -681,16 +860,32 @@ const EventManagement = () => {
           </div>
         )}
 
+        {/* Progress Bar */}
+        {loading && uploadProgress > 0 && (
+          <div className="md:col-span-2">
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              Uploading... {uploadProgress}%
+            </p>
+          </div>
+        )}
+
+        {/* Submit Buttons */}
         <div className="md:col-span-2 flex gap-4">
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-md transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             disabled={loading}
           >
             {loading ? (
               <>
                 <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -729,17 +924,22 @@ const EventManagement = () => {
         </div>
       </form>
 
+      {/* Events List */}
       <div className="border-t pt-6">
         <h2 className="text-xl font-semibold mb-4">All Events</h2>
+
+        {/* Search */}
         <div className="mb-4">
           <input
-            className="w-full sm:w-96 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full sm:w-96 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Search events..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setSearch(sanitizeInput(e.target.value))}
+            maxLength={100}
           />
         </div>
 
+        {/* Events Table */}
         <div className="overflow-x-auto bg-white rounded-lg shadow">
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-700 text-xs uppercase">
@@ -772,13 +972,13 @@ const EventManagement = () => {
                     <div className="flex flex-wrap sm:flex-nowrap gap-2">
                       <button
                         onClick={() => handleEdit(event)}
-                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors w-full sm:w-auto"
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(event._id)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors w-full sm:w-auto"
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
                       >
                         Delete
                       </button>
