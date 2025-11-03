@@ -15,6 +15,9 @@ import EventManagement from "./admin/EventManagement";
 import RegistrationManagement from "./admin/RegistrationManagement";
 import FeedbackReview from "./admin/FeedbackReview";
 import axiosInstance from "../utils/axiosInstance";
+import logger from "../utils/logger";
+import { clearAuthData } from "../config/security";
+import toast from "react-hot-toast";
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -28,27 +31,22 @@ const AdminPanel = () => {
     { key: "feedback", label: "Feedback", icon: MessageSquare },
   ];
 
-  // Logout function to clear both localStorage and cookies
   const handleLogout = async () => {
     try {
-      // Make API call to logout endpoint
+      logger.info("Logout initiated");
+
       await axiosInstance.post("/auth/logout", null, {
         withCredentials: true,
       });
-    } catch (err) {
-      console.error("Logout failed:", err);
-    } finally {
-      // Clear localStorage
-      localStorage.clear();
 
-      // Clear all cookies by setting them to expire in the past
-      document.cookie.split(";").forEach((c) => {
-        const eqPos = c.indexOf("=");
-        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        // Also clear with domain specification for broader compatibility
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-      });
+      logger.info("Logged out successfully");
+      logger.action("user_logout");
+    } catch (err) {
+      logger.error("Logout failed", err);
+    } finally {
+      // Clear sessionStorage
+      sessionStorage.clear();
+      logger.clearUserId();
 
       // Redirect to login
       window.location.href = "/login";
@@ -75,6 +73,11 @@ const AdminPanel = () => {
   const handleTabClick = (tabKey) => {
     setActiveTab(tabKey);
     setSidebarOpen(false); // Close sidebar on mobile after selection
+
+    logger.action("admin_tab_changed", {
+      from: activeTab,
+      to: tabKey,
+    });
   };
 
   return (
@@ -87,7 +90,7 @@ const AdminPanel = () => {
             <h1 className="text-xl font-semibold">Admin Panel</h1>
             <button
               onClick={handleLogout}
-              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               <LogOut size={18} className="mr-2" />
               Logout
@@ -125,6 +128,7 @@ const AdminPanel = () => {
         <main className="flex-1 p-6 overflow-y-auto">{renderTabContent()}</main>
       </div>
 
+      {/* Mobile Layout */}
       <div className="lg:hidden">
         {/* Mobile Header */}
         <header className="bg-blue-700 text-white px-4 py-3 shadow-md">
@@ -132,6 +136,7 @@ const AdminPanel = () => {
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-md hover:bg-blue-600 transition-colors"
+              aria-label="Open menu"
             >
               <Menu size={20} />
             </button>
@@ -140,6 +145,7 @@ const AdminPanel = () => {
               onClick={handleLogout}
               className="p-2 rounded-md hover:bg-red-600 bg-red-500 transition-colors"
               title="Logout"
+              aria-label="Logout"
             >
               <LogOut size={18} />
             </button>
@@ -149,9 +155,9 @@ const AdminPanel = () => {
         {/* Mobile Sidebar */}
         <div
           className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
+            fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          `}
         >
           {/* Mobile Sidebar Header */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 bg-blue-700 text-white">
@@ -159,6 +165,7 @@ const AdminPanel = () => {
             <button
               onClick={() => setSidebarOpen(false)}
               className="p-1 rounded-md hover:bg-blue-600 transition-colors"
+              aria-label="Close menu"
             >
               <X size={20} />
             </button>
@@ -190,7 +197,7 @@ const AdminPanel = () => {
             {/* Mobile Logout Button in Sidebar */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center px-3 py-3 mt-4 text-left rounded-lg transition-colors duration-200 text-red-600 hover:bg-red-50 border-t border-gray-200"
+              className="w-full flex items-center px-3 py-3 mt-4 text-left rounded-lg transition-colors duration-200 text-red-600 hover:bg-red-50"
             >
               <LogOut size={18} className="mr-3" />
               <span className="font-medium">Logout</span>
@@ -203,6 +210,7 @@ const AdminPanel = () => {
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu overlay"
           />
         )}
 
