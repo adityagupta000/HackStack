@@ -6,8 +6,11 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import axios from "axios"; // 🔄 use raw axios for refresh
-import axiosInstance from "./utils/axiosInstance";
+import axios from "axios";
+import axiosInstance, { setCSRFToken } from "./utils/axiosInstance";
+import { useCSRF } from "./hooks/useCSRF";
+import logger from "./utils/logger";
+import { detectClickjacking } from "./config/security";
 
 import Footer from "./pages/Footer.jsx";
 import Home from "./components/Home";
@@ -21,6 +24,28 @@ import UserDashboard from "./components/UserDashboard";
 import VerifyPage from "./pages/VerifyPage";
 
 // ==============================
+// CSRF Token Hook Component
+// ==============================
+const CSRFTokenInitializer = () => {
+  const { csrfToken, loading, error } = useCSRF();
+
+  useEffect(() => {
+    if (csrfToken) {
+      setCSRFToken(csrfToken);
+      logger.debug("CSRF token initialized from hook");
+    }
+  }, [csrfToken]);
+
+  useEffect(() => {
+    if (error) {
+      logger.error("CSRF token initialization failed", new Error(error));
+    }
+  }, [error]);
+
+  return null; // This component doesn't render anything
+};
+
+// ==============================
 // PrivateRoute Component
 // ==============================
 const PrivateRoute = ({ element, allowedRole }) => {
@@ -29,33 +54,77 @@ const PrivateRoute = ({ element, allowedRole }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const accessToken = localStorage.getItem("accessToken");
-      const role = localStorage.getItem("role");
+      // Check sessionStorage for role (non-sensitive data)
+      let role = sessionStorage.getItem("userRole");
 
-      if (!accessToken) {
-        try {
-          const res = await axios.post(
-            "http://localhost:5000/api/auth/refreshToken",
-            null,
-            { withCredentials: true } // ✅ get cookie from browser
-          );
-          localStorage.setItem("accessToken", res.data.accessToken);
-          localStorage.setItem("role", res.data.role);
-        } catch (err) {
-          console.error("Token refresh failed.");
-          localStorage.clear();
+      // If we have role in sessionStorage, user is likely authenticated
+      if (role) {
+        if (role === allowedRole) {
+          setIsAllowed(true);
+          setLoading(false);
+          logger.info("Private route access granted from sessionStorage", {
+            role,
+          });
+          return;
+        } else {
           setIsAllowed(false);
           setLoading(false);
+          logger.warn("Private route access denied - wrong role", {
+            expectedRole: allowedRole,
+            actualRole: role,
+          });
           return;
         }
       }
 
-      const updatedAccessToken = localStorage.getItem("accessToken");
-      const updatedRole = localStorage.getItem("role");
+      try {
+        logger.debug("Attempting token verification in PrivateRoute");
 
-      if (updatedAccessToken && updatedRole === allowedRole) {
-        setIsAllowed(true);
-      } else {
+        // Call a verify endpoint that checks the httpOnly cookie
+        const res = await axios.get(
+          "http://localhost:5000/api/protected/verify-token",
+          {
+            withCredentials: true,
+            timeout: 5000,
+          }
+        );
+
+        role = res.data.role;
+
+        sessionStorage.setItem("userRole", role);
+        sessionStorage.setItem("userId", res.data.user.id);
+        sessionStorage.setItem("userName", res.data.user.name);
+
+        logger.info("Token verified successfully in PrivateRoute", { role });
+
+        if (role === allowedRole) {
+          setIsAllowed(true);
+          logger.info("Private route access granted after verification", {
+            role,
+          });
+        } else {
+          setIsAllowed(false);
+          logger.warn(
+            "Private route access denied after verification - wrong role",
+            {
+              expectedRole: allowedRole,
+              actualRole: role,
+            }
+          );
+        }
+      } catch (err) {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          logger.debug("No valid authentication - user must login");
+        } else {
+          logger.warn("Token verification failed in PrivateRoute", {
+            error: err.message,
+            status: err.response?.status,
+          });
+        }
+
+        sessionStorage.removeItem("userRole");
+        sessionStorage.removeItem("userId");
+        sessionStorage.removeItem("userName");
         setIsAllowed(false);
       }
 
@@ -65,9 +134,28 @@ const PrivateRoute = ({ element, allowedRole }) => {
     checkAuth();
   }, [allowedRole]);
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
 
-  return isAllowed ? element : <Navigate to="/login" replace />;
+  if (!isAllowed) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: window.location.pathname }}
+      />
+    );
+  }
+
+  return element;
 };
 
 // ==============================
@@ -97,31 +185,87 @@ function ConditionalFooter() {
 // ==============================
 function App() {
   useEffect(() => {
-    const accessToken = localStorage.getItem("accessToken");
+    const initializeApp = async () => {
+      // Check for clickjacking
+      if (detectClickjacking()) {
+        logger.error("Clickjacking detected - app loaded in iframe");
+        // Optionally break out of iframe
+        if (window.top !== window.self) {
+          window.top.location = window.self.location;
+        }
+      }
 
-    const tryRefresh = async () => {
-      if (!accessToken) {
+      // Log user info
+      const userId = localStorage.getItem("userId");
+      if (userId) {
+        logger.setUserId(userId);
+      }
+
+      // Fetch fresh CSRF token on app start
+      try {
+        const response = await axios.get(
+          "http://localhost:5000/api/csrf-token",
+          {
+            withCredentials: true,
+            timeout: 5000,
+          }
+        );
+
+        if (response.data?.csrfToken) {
+          sessionStorage.setItem("csrfToken", response.data.csrfToken);
+          setCSRFToken(response.data.csrfToken);
+          logger.info("Fresh CSRF token fetched on app initialization");
+        }
+      } catch (err) {
+        logger.debug("Failed to fetch initial CSRF token", {
+          error: err.message,
+        });
+        // Not critical - the CSRFTokenInitializer hook will handle it
+      }
+
+      // Initial token refresh attempt - ONLY if user has a token
+      const accessToken = localStorage.getItem("accessToken");
+
+      if (accessToken) {
         try {
           const res = await axios.post(
             "http://localhost:5000/api/auth/refreshToken",
             null,
-            { withCredentials: true }
+            { withCredentials: true, timeout: 5000 }
           );
           localStorage.setItem("accessToken", res.data.accessToken);
           localStorage.setItem("role", res.data.role);
+
+          logger.info("Initial token refresh successful");
         } catch (err) {
-          console.warn("Token refresh on load failed.");
+          // 403 means no valid refresh token - user needs to login
+          if (err.response?.status === 403) {
+            logger.debug(
+              "No valid refresh token on app start - user needs to login"
+            );
+          } else {
+            logger.debug("Token refresh failed", { error: err.message });
+          }
+          // Token expired or invalid, clean up
           localStorage.removeItem("accessToken");
           localStorage.removeItem("role");
+          localStorage.removeItem("userId");
         }
       }
+      // If no accessToken, do nothing - user is not logged in
     };
 
-    tryRefresh();
+    initializeApp();
+
+    // Cleanup on unmount
+    return () => {
+      logger.info("App component unmounting");
+    };
   }, []);
 
   return (
     <Router>
+      <CSRFTokenInitializer />
       <div className="App d-flex flex-column min-vh-100">
         <div className="flex-grow-1">
           <Routes>
@@ -130,10 +274,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/about" element={<About />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route
-              path="/reset-password/:accessToken"
-              element={<ResetPassword />}
-            />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/verify/:token" element={<VerifyPage />} />
             <Route
               path="/admin"
