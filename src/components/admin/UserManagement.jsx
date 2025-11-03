@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../utils/axiosInstance";
+import { sanitizeInput } from "../../utils/sanitize";
+import { validateSearchQuery } from "../../utils/validation";
+import { handleAPIError } from "../../utils/errorHandler";
+import logger from "../../utils/logger";
+import toast from "react-hot-toast";
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -17,7 +22,7 @@ const Toast = ({ message, type, onClose }) => {
 
   return (
     <div
-      className={`fixed top-6 right-6 z-50 p-3 text-white rounded shadow ${color}`}
+      className={`fixed top-6 right-6 z-50 p-3 text-white rounded shadow ${color} transition-all duration-300`}
     >
       {message}
     </div>
@@ -29,7 +34,7 @@ const UserManagement = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-  const [confirmUserId, setConfirmUserId] = useState(null); // for popup
+  const [confirmUserId, setConfirmUserId] = useState(null);
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
@@ -38,10 +43,16 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+
       const res = await axiosInstance.get(`/admin/users?search=${search}`);
       setUsers(res.data);
+
+      logger.info("Users fetched in admin panel", { count: res.data.length });
     } catch (err) {
-      showToast("Error fetching users", "error");
+      logger.error("Failed to fetch users", err);
+      handleAPIError(err, {
+        fallbackMessage: "Error fetching users",
+      });
     } finally {
       setLoading(false);
     }
@@ -51,25 +62,61 @@ const UserManagement = () => {
     fetchUsers();
   }, [search]);
 
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+
+    // Validate search query
+    const validation = validateSearchQuery(value);
+    if (!validation.isValid) {
+      showToast(validation.error, "error");
+      return;
+    }
+
+    const sanitized = sanitizeInput(value);
+    setSearch(sanitized);
+  };
+
   const handleRoleChange = async (id, newRole) => {
+    if (!["admin", "user"].includes(newRole)) {
+      showToast("Invalid role", "error");
+      return;
+    }
+
     try {
       await axiosInstance.put(`/admin/users/${id}/role`, { role: newRole });
+
       setUsers((prev) =>
         prev.map((u) => (u._id === id ? { ...u, role: newRole } : u))
       );
+
       showToast("User role updated", "success");
+
+      logger.info("User role updated", { userId: id, newRole });
+      logger.action("user_role_changed", { userId: id, newRole });
     } catch (err) {
-      showToast("Failed to update role", "error");
+      logger.error("Failed to update role", err, { userId: id });
+      handleAPIError(err, {
+        fallbackMessage: "Failed to update role",
+      });
     }
   };
 
   const handleDelete = async () => {
+    if (!confirmUserId) return;
+
     try {
       await axiosInstance.delete(`/admin/users/${confirmUserId}`);
+
       setUsers((prev) => prev.filter((u) => u._id !== confirmUserId));
       showToast("User deleted successfully", "success");
+
+      logger.info("User deleted", { userId: confirmUserId });
+      logger.action("user_deleted", { userId: confirmUserId });
     } catch (err) {
-      showToast("Failed to delete user", "error");
+      logger.error("Failed to delete user", err, { userId: confirmUserId });
+      handleAPIError(err, {
+        fallbackMessage: "Failed to delete user",
+      });
     } finally {
       setConfirmUserId(null);
     }
@@ -79,19 +126,25 @@ const UserManagement = () => {
     <div className="p-6 w-full max-w-full mx-auto relative">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">User Management</h1>
 
+      {/* Search Bar */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <input
           type="text"
           placeholder="Search by name or email..."
           className="w-full sm:w-96 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearchChange}
+          maxLength={100}
         />
       </div>
 
+      {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         {loading ? (
-          <div className="text-center p-6 text-gray-500">Loading users...</div>
+          <div className="text-center p-6 text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            Loading users...
+          </div>
         ) : (
           <table className="min-w-full text-sm text-left table-auto">
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
@@ -110,7 +163,7 @@ const UserManagement = () => {
                     <td className="px-5 py-3">{user.email}</td>
                     <td className="px-5 py-3">
                       <select
-                        className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:ring-blue-400"
+                        className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:ring-blue-300"
                         value={user.role}
                         onChange={(e) =>
                           handleRoleChange(user._id, e.target.value)
@@ -145,13 +198,14 @@ const UserManagement = () => {
         )}
       </div>
 
-      {/* Centered Confirmation Popup */}
+      {/* Confirmation Modal */}
       {confirmUserId && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-xl w-11/12 sm:w-96 text-center">
             <h2 className="text-lg font-semibold mb-4">Confirm Deletion</h2>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this user?
+              Are you sure you want to delete this user? This action cannot be
+              undone.
             </p>
             <div className="flex justify-center gap-4">
               <button
