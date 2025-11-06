@@ -8,7 +8,6 @@ import { sanitizeInput } from "../utils/sanitize";
 import { validateFeedback, validateSearchQuery } from "../utils/validation";
 import { handleAPIError } from "../utils/errorHandler";
 import logger from "../utils/logger";
-import { clearAuthData } from "../config/security";
 
 const UserDashboard = () => {
   const [registeredEvents, setRegisteredEvents] = useState([]);
@@ -43,11 +42,8 @@ const UserDashboard = () => {
     } catch (err) {
       logger.error("Logout failed", err);
     } finally {
-      // Clear sessionStorage
       sessionStorage.clear();
       logger.clearUserId();
-
-      // Redirect to login
       window.location.href = "/login";
     }
   };
@@ -58,10 +54,32 @@ const UserDashboard = () => {
         setLoading(true);
 
         const res = await axiosInstance.get("/registrations/my-registrations");
-        setRegisteredEvents(res.data);
+
+        // CRITICAL FIX: Filter out registrations with null events
+        const validRegistrations = res.data.filter(
+          (entry) => entry.event !== null
+        );
+
+        // Log if any registrations were filtered out
+        if (res.data.length !== validRegistrations.length) {
+          logger.warn("Some registrations have deleted events", {
+            total: res.data.length,
+            valid: validRegistrations.length,
+            filtered: res.data.length - validRegistrations.length,
+          });
+
+          toast.info(
+            `${
+              res.data.length - validRegistrations.length
+            } registration(s) for deleted events hidden`,
+            { duration: 3000 }
+          );
+        }
+
+        setRegisteredEvents(validRegistrations);
 
         logger.info("User registrations fetched", {
-          count: res.data.length,
+          count: validRegistrations.length,
         });
       } catch (err) {
         logger.error("Failed to fetch registrations", err, {
@@ -77,15 +95,12 @@ const UserDashboard = () => {
     };
 
     fetchRegistrations();
-
-    // Log page view
     logger.action("dashboard_view");
   }, []);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
 
-    // Validate search query
     const validation = validateSearchQuery(value);
     if (!validation.isValid) {
       toast.error(validation.error);
@@ -96,7 +111,11 @@ const UserDashboard = () => {
     setSearchQuery(sanitized);
   };
 
+  // CRITICAL FIX: Add null checks for event object
   const filteredEvents = registeredEvents.filter((entry) => {
+    // Safety check: ensure event exists
+    if (!entry.event) return false;
+
     const event = entry.event;
     const query = searchQuery.toLowerCase();
 
@@ -109,17 +128,21 @@ const UserDashboard = () => {
 
   const today = new Date().toDateString();
 
+  // CRITICAL FIX: Add null checks in all filter operations
   const upcomingEvents = registeredEvents.filter((entry) => {
+    if (!entry.event || !entry.event.date) return false;
     const eventDate = new Date(entry.event.date);
     return eventDate >= new Date();
   });
 
   const todayEvents = registeredEvents.filter((entry) => {
+    if (!entry.event || !entry.event.date) return false;
     const eventDate = new Date(entry.event.date);
     return eventDate.toDateString() === today;
   });
 
   const eventsOnSelectedDate = registeredEvents.filter((entry) => {
+    if (!entry.event || !entry.event.date) return false;
     const eventDate = formatDate(entry.event.date);
     const selectedDate = formatDate(calendarDate);
     return eventDate && selectedDate && eventDate === selectedDate;
@@ -128,6 +151,7 @@ const UserDashboard = () => {
   const tileClassName = ({ date }) => {
     const current = formatDate(date);
     return registeredEvents.some((entry) => {
+      if (!entry.event || !entry.event.date) return false;
       const eventDate = formatDate(entry.event.date);
       return eventDate && eventDate === current;
     })
@@ -144,7 +168,6 @@ const UserDashboard = () => {
   };
 
   const handleSubmitFeedback = async () => {
-    // Validate feedback
     const validation = validateFeedback(feedbackText);
     if (!validation.isValid) {
       toast.error(validation.error);
@@ -192,11 +215,10 @@ const UserDashboard = () => {
         `/registrations/${registrationId}/pdf`,
         {
           responseType: "blob",
-          timeout: 30000, // 30 seconds
+          timeout: 30000,
         }
       );
 
-      // Create blob URL and download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const a = document.createElement("a");
       a.href = url;
@@ -273,18 +295,16 @@ const UserDashboard = () => {
 
       {/* Navigation Buttons */}
       <div className="flex justify-between items-center mb-6">
-        {/* Left-aligned: Back to Home */}
         <button
           onClick={() => {
             logger.action("navigate_to_home");
             window.location.href = "/home";
           }}
-          className="text-sm text-blue-600 hover:underline flex items-center"
+          className="text-lg text-blue-600 hover:underline flex items-center"
         >
-          <i className="fas fa-arrow-left mr-2"></i> Back to Home
+          <i className="fas fa-arrow-left mr-2"></i>
         </button>
 
-        {/* Right-aligned group: Logout + Calendar */}
         <div className="flex items-center space-x-3">
           <button
             onClick={() => {
@@ -377,28 +397,37 @@ const UserDashboard = () => {
             ) : (
               filteredEvents.map((entry) => {
                 const event = entry.event;
+
+                // Extra safety check (should not be needed after filtering, but adds robustness)
+                if (!event) return null;
+
                 return (
                   <div className="col-md-4 mb-4" key={event._id}>
                     <Card className="h-100 shadow-sm p-3">
                       <Card.Body>
                         <Card.Title className="text-lg font-semibold mb-3">
-                          {sanitizeInput(event.title)}
+                          {sanitizeInput(event.title || "Untitled Event")}
                         </Card.Title>
                         <Card.Text>
-                          <strong>Date:</strong> {sanitizeInput(event.date)}
+                          <strong>Date:</strong>{" "}
+                          {sanitizeInput(event.date || "N/A")}
                           <br />
-                          <strong>Time:</strong> {sanitizeInput(event.time)}
+                          <strong>Time:</strong>{" "}
+                          {sanitizeInput(event.time || "N/A")}
                           <br />
                           <strong>Category:</strong>{" "}
                           <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            {sanitizeInput(event.category)}
+                            {sanitizeInput(event.category || "N/A")}
                           </span>
                         </Card.Text>
                         <Card.Text
                           className="text-muted"
                           style={{ fontSize: "0.9em", textAlign: "justify" }}
                         >
-                          {sanitizeInput(event.description?.slice(0, 120))}...
+                          {sanitizeInput(
+                            event.description?.slice(0, 120) || ""
+                          )}
+                          ...
                         </Card.Text>
                         <div className="d-flex flex-column gap-2 mt-3">
                           {event.ruleBook && (
@@ -427,7 +456,10 @@ const UserDashboard = () => {
                             variant="outline-success"
                             size="sm"
                             onClick={() =>
-                              handleDownloadReceipt(entry._id, event.title)
+                              handleDownloadReceipt(
+                                entry._id,
+                                event.title || "receipt"
+                              )
                             }
                             disabled={downloadingReceipt === entry._id}
                           >
@@ -492,7 +524,7 @@ const UserDashboard = () => {
               <ul className="list-unstyled px-2">
                 {eventsOnSelectedDate.map((entry) => (
                   <li key={entry._id} className="mb-1 text-break">
-                    • {sanitizeInput(entry.event.title)}
+                    • {sanitizeInput(entry.event?.title || "Unknown Event")}
                   </li>
                 ))}
               </ul>
@@ -568,13 +600,13 @@ const UserDashboard = () => {
       </Modal>
 
       <style>{`
-          .event-day-highlight {
+        .event-day-highlight {
           background-color: #3b82f6 !important;
           color: white !important;
           border-radius: 50%;
         }
-          .event-day-highlight:hover {
-           background-color: #2563eb !important;
+        .event-day-highlight:hover {
+          background-color: #2563eb !important;
         }
       `}</style>
     </div>

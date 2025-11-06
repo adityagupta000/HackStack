@@ -298,6 +298,10 @@ app.get("/health", async (req, res) => {
   }
 });
 
+// app.get("/api/csrf-token", (req, res) => {
+//   res.json({ csrfToken: req.csrfToken() });
+// });
+
 // API Routes
 app.use("/", verifyRoutes);
 app.use(globalLimiter); // Apply global rate limiting
