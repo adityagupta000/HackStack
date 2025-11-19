@@ -42,8 +42,11 @@ const UserDashboard = () => {
     } catch (err) {
       logger.error("Logout failed", err);
     } finally {
-      sessionStorage.clear();
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("userName");
       logger.clearUserId();
+
       window.location.href = "/login";
     }
   };

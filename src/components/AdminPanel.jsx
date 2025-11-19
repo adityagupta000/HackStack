@@ -44,8 +44,9 @@ const AdminPanel = () => {
     } catch (err) {
       logger.error("Logout failed", err);
     } finally {
-      // Clear sessionStorage
-      sessionStorage.clear();
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("userName");
       logger.clearUserId();
 
       // Redirect to login

@@ -203,7 +203,7 @@ function HackathonRegister() {
       });
 
       handleAPIError(error, {
-        showToast: false, 
+        showToast: false,
         fallbackMessage: "Registration failed",
       });
     } finally {
@@ -214,8 +214,16 @@ function HackathonRegister() {
   return (
     <div
       className="container-fluid d-flex flex-column justify-content-center align-items-center"
-      style={{ minHeight: "100vh", backgroundColor: "black", padding: "20px" }}
+      style={{
+        minHeight: "100vh",
+        padding: "20px",
+        position: "relative",
+        overflow: "hidden",
+      }}
     >
+      {/* Cosmic Background Animation */}
+      <div className="cosmic-background"></div>
+
       {showMessage && (
         <div
           className={`toast-message ${messageType}`}
@@ -248,7 +256,14 @@ function HackathonRegister() {
 
       <div
         className="register-container d-flex flex-column p-4 p-md-5 border rounded"
-        style={{ maxWidth: "400px", width: "100%", backgroundColor: "white" }}
+        style={{
+          maxWidth: "400px",
+          width: "100%",
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          zIndex: 10,
+          position: "relative",
+          boxShadow: "none",
+        }}
       >
         <div className="text-center mb-4">
           <p style={{ fontSize: "18px" }}>
@@ -585,6 +600,69 @@ function HackathonRegister() {
       </div>
 
       <style>{`
+        .cosmic-background {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #000000;
+          z-index: 1;
+        }
+
+        .cosmic-background::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 200%;
+          height: 200%;
+          background-image: 
+            radial-gradient(2px 2px at 20px 30px, white, transparent),
+            radial-gradient(2px 2px at 60px 70px, white, transparent),
+            radial-gradient(1px 1px at 50px 50px, white, transparent),
+            radial-gradient(1px 1px at 130px 80px, white, transparent),
+            radial-gradient(2px 2px at 90px 10px, white, transparent),
+            radial-gradient(1px 1px at 110px 120px, white, transparent),
+            radial-gradient(1px 1px at 150px 60px, white, transparent),
+            radial-gradient(2px 2px at 180px 90px, white, transparent);
+          background-size: 200px 200px;
+          background-repeat: repeat;
+          animation: twinkle 5s ease-in-out infinite, starsMove 60s linear infinite;
+          opacity: 0.9;
+        }
+
+        .cosmic-background::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-image: 
+            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 60% 70%, rgba(255, 255, 255, 0.04) 0%, transparent 50%),
+            radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+          animation: drift 20s ease-in-out infinite;
+          pointer-events: none;
+        }
+
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+
+        @keyframes starsMove {
+          0% { transform: translate(0, 0); }
+          100% { transform: translate(-50%, -50%); }
+        }
+
+        @keyframes drift {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(20px, -20px); }
+        }
+
         .floating-label-content {
           position: relative;
         }
@@ -595,7 +673,7 @@ function HackathonRegister() {
           top: 50%;
           transform: translateY(-50%);
           padding: 0 4px;
-          background: #fff;
+          background: rgba(255, 255, 255, 0.95);
           transition: 0.2s ease all;
           color: #3D85D8;
           pointer-events: none;

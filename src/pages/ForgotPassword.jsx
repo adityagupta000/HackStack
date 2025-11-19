@@ -81,139 +81,363 @@ const ForgotPassword = () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+      <div
+        className="container-fluid d-flex flex-column justify-content-center align-items-center"
+        style={{
+          minHeight: "100vh",
+          padding: "20px",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* Cosmic Background Animation */}
+        <div className="cosmic-background"></div>
+
+        <div
+          className="success-container d-flex flex-column p-4 p-md-5 border rounded"
+          style={{
+            maxWidth: "450px",
+            width: "100%",
+            backgroundColor: "rgba(255, 255, 255, 0.95)",
+            zIndex: 10,
+            position: "relative",
+            boxShadow: "none",
+          }}
+        >
           <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-              <svg
-                className="h-6 w-6 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
+            <div
+              style={{
+                margin: "0 auto 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "60px",
+                width: "60px",
+                borderRadius: "50%",
+                backgroundColor: "#d4edda",
+              }}
+            >
+              <i
+                className="fa fa-envelope"
+                style={{ fontSize: "28px", color: "#28a745" }}
+              ></i>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2
+              style={{
+                fontSize: "24px",
+                fontWeight: "bold",
+                color: "black",
+                marginBottom: "16px",
+              }}
+            >
               Check Your Email
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p
+              style={{
+                color: "#6c757d",
+                marginBottom: "24px",
+                fontSize: "14px",
+              }}
+            >
               If your email is registered with us, you will receive a password
               reset link shortly. Please check your inbox and spam folder.
             </p>
-            <p className="text-sm text-gray-500 mb-6">
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#6c757d",
+                marginBottom: "24px",
+              }}
+            >
               The link will expire in 10 minutes for security reasons.
             </p>
             <a
               href="/login"
-              className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="btn btn-outline-dark d-inline-block"
+              style={{ padding: "10px 24px", textDecoration: "none" }}
             >
               Back to Login
             </a>
           </div>
         </div>
+
+        <style>{`
+          .cosmic-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: 1;
+          }
+
+          .cosmic-background::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            background-image: 
+              radial-gradient(2px 2px at 20px 30px, white, transparent),
+              radial-gradient(2px 2px at 60px 70px, white, transparent),
+              radial-gradient(1px 1px at 50px 50px, white, transparent),
+              radial-gradient(1px 1px at 130px 80px, white, transparent),
+              radial-gradient(2px 2px at 90px 10px, white, transparent),
+              radial-gradient(1px 1px at 110px 120px, white, transparent),
+              radial-gradient(1px 1px at 150px 60px, white, transparent),
+              radial-gradient(2px 2px at 180px 90px, white, transparent);
+            background-size: 200px 200px;
+            background-repeat: repeat;
+            animation: twinkle 5s ease-in-out infinite, starsMove 60s linear infinite;
+            opacity: 0.9;
+          }
+
+          .cosmic-background::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+              radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 60% 70%, rgba(255, 255, 255, 0.04) 0%, transparent 50%),
+              radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
+              radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+            animation: drift 20s ease-in-out infinite;
+            pointer-events: none;
+          }
+
+          @keyframes twinkle {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+          }
+
+          @keyframes starsMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-50%, -50%); }
+          }
+
+          @keyframes drift {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(20px, -20px); }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Forgot Password?
-          </h2>
-          <p className="text-gray-600">
+    <div
+      className="container-fluid d-flex flex-column justify-content-center align-items-center"
+      style={{
+        minHeight: "100vh",
+        padding: "20px",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Cosmic Background Animation */}
+      <div className="cosmic-background"></div>
+
+      <div
+        className="forgot-password-container d-flex flex-column p-4 p-md-5 border rounded"
+        style={{
+          maxWidth: "400px",
+          width: "100%",
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          zIndex: 10,
+          position: "relative",
+          boxShadow: "none",
+        }}
+      >
+        <div className="text-center mb-4">
+          <p style={{ fontSize: "18px" }}>
+            <span style={{ color: "red", marginRight: "5px" }}>Forgot</span>
+            <span style={{ color: "#3D85D8" }}>Password?</span>
+          </p>
+          <p style={{ color: "#6c757d", fontSize: "13px", marginTop: "8px" }}>
             Enter your email address and we'll send you a link to reset your
             password.
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Email Address
-            </label>
+          <div className="floating-label-content mb-3">
             <input
+              className="floating-input form-control"
               type="email"
               id="email"
+              placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter your email"
               required
-              maxLength={255}
               autoComplete="email"
+              maxLength={255}
             />
-            {error && (
-              <p className="mt-2 text-sm text-red-600">
-                <i className="fa fa-exclamation-circle mr-1"></i>
-                {error}
-              </p>
-            )}
+            <label className="floating-label" htmlFor="email">
+              Email address
+            </label>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center font-medium"
-          >
-            {loading ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Sending...
-              </>
-            ) : (
-              "Send Reset Link"
-            )}
-          </button>
+          {error && (
+            <div
+              className="alert alert-danger py-2 px-3"
+              style={{ fontSize: "12px", marginBottom: "16px" }}
+            >
+              <i className="fa fa-exclamation-circle me-2"></i>
+              {error}
+            </div>
+          )}
+
+          <div className="d-flex justify-content-center">
+            <button
+              type="submit"
+              className="btn btn-outline-dark mb-3 mt-3 d-flex align-items-center"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Sending...
+                </>
+              ) : (
+                "Send Reset Link"
+              )}
+            </button>
+          </div>
         </form>
 
-        <div className="mt-6 text-center">
-          <a href="/login" className="text-sm text-blue-600 hover:underline">
+        <div className="text-center mt-3">
+          <a href="/login" style={{ fontSize: "14px" }}>
             Back to Login
           </a>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-600 text-center">
-            Don't have an account?{" "}
-            <a
-              href="/register"
-              className="text-blue-600 hover:underline font-medium"
-            >
-              Register here
-            </a>
+        <div
+          className="text-center mt-3 pt-3"
+          style={{ borderTop: "1px solid #dee2e6" }}
+        >
+          <p style={{ fontSize: "14px", color: "black", margin: 0 }}>
+            Don't have an account? <a href="/register">Register</a>
           </p>
         </div>
       </div>
+
+      <style>{`
+        .cosmic-background {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #000000;
+          z-index: 1;
+        }
+
+        .cosmic-background::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 200%;
+          height: 200%;
+          background-image: 
+            radial-gradient(2px 2px at 20px 30px, white, transparent),
+            radial-gradient(2px 2px at 60px 70px, white, transparent),
+            radial-gradient(1px 1px at 50px 50px, white, transparent),
+            radial-gradient(1px 1px at 130px 80px, white, transparent),
+            radial-gradient(2px 2px at 90px 10px, white, transparent),
+            radial-gradient(1px 1px at 110px 120px, white, transparent),
+            radial-gradient(1px 1px at 150px 60px, white, transparent),
+            radial-gradient(2px 2px at 180px 90px, white, transparent);
+          background-size: 200px 200px;
+          background-repeat: repeat;
+          animation: twinkle 5s ease-in-out infinite, starsMove 60s linear infinite;
+          opacity: 0.9;
+        }
+
+        .cosmic-background::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-image: 
+            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 60% 70%, rgba(255, 255, 255, 0.04) 0%, transparent 50%),
+            radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+          animation: drift 20s ease-in-out infinite;
+          pointer-events: none;
+        }
+
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+
+        @keyframes starsMove {
+          0% { transform: translate(0, 0); }
+          100% { transform: translate(-50%, -50%); }
+        }
+
+        @keyframes drift {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(20px, -20px); }
+        }
+
+        .floating-label-content {
+          position: relative;
+        }
+        .floating-label {
+          font-size: 13px;
+          position: absolute;
+          left: 15px;
+          top: 50%;
+          transform: translateY(-50%);
+          padding: 0 4px;
+          background: rgba(255, 255, 255, 0.95);
+          transition: 0.2s ease all;
+          color: #3D85D8;
+          pointer-events: none;
+        }
+        .floating-input {
+          font-size: 14px;
+          display: block;
+          width: 100%;
+          height: 36px;
+          padding: 0 20px;
+          background: #fff;
+          color: black;
+          border: 1px solid #3D85D8;
+          border-radius: 5px;
+          box-sizing: border-box;
+        }
+        .floating-input:focus + .floating-label,
+        .floating-input:not(:placeholder-shown) + .floating-label {
+          top: -2px;
+          left: 10px;
+          font-size: 12px;
+          color: #3D85D8;
+        }
+        a {
+          text-decoration: none;
+          border-bottom: 1px solid transparent;
+          transition: border-bottom 0.3s ease-in-out, color 0.3s ease-in-out;
+        }
+        a:hover {
+          color: blue;
+          border-bottom: 1px solid red;
+        }
+      `}</style>
     </div>
   );
 };

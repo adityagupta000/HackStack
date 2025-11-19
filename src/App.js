@@ -42,7 +42,7 @@ const CSRFTokenInitializer = () => {
     }
   }, [error]);
 
-  return null; // This component doesn't render anything
+  return null;
 };
 
 // ==============================
@@ -54,15 +54,13 @@ const PrivateRoute = ({ element, allowedRole }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Check sessionStorage for role (non-sensitive data)
-      let role = sessionStorage.getItem("userRole");
+      let role = localStorage.getItem("userRole");
 
-      // If we have role in sessionStorage, user is likely authenticated
       if (role) {
         if (role === allowedRole) {
           setIsAllowed(true);
           setLoading(false);
-          logger.info("Private route access granted from sessionStorage", {
+          logger.info("Private route access granted from localStorage", {
             role,
           });
           return;
@@ -80,7 +78,6 @@ const PrivateRoute = ({ element, allowedRole }) => {
       try {
         logger.debug("Attempting token verification in PrivateRoute");
 
-        // Call a verify endpoint that checks the httpOnly cookie
         const res = await axios.get(
           "http://localhost:5000/api/protected/verify-token",
           {
@@ -91,9 +88,9 @@ const PrivateRoute = ({ element, allowedRole }) => {
 
         role = res.data.role;
 
-        sessionStorage.setItem("userRole", role);
-        sessionStorage.setItem("userId", res.data.user.id);
-        sessionStorage.setItem("userName", res.data.user.name);
+        localStorage.setItem("userRole", role);
+        localStorage.setItem("userId", res.data.user.id);
+        localStorage.setItem("userName", res.data.user.name);
 
         logger.info("Token verified successfully in PrivateRoute", { role });
 
@@ -122,9 +119,9 @@ const PrivateRoute = ({ element, allowedRole }) => {
           });
         }
 
-        sessionStorage.removeItem("userRole");
-        sessionStorage.removeItem("userId");
-        sessionStorage.removeItem("userName");
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userName");
         setIsAllowed(false);
       }
 
@@ -269,7 +266,7 @@ function App() {
       <div className="App d-flex flex-column min-vh-100">
         <div className="flex-grow-1">
           <Routes>
-            <Route path="/" element={<Login />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/about" element={<About />} />

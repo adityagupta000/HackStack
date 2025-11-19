@@ -57,8 +57,7 @@ const EventCard = ({
     setRegistering(true);
 
     try {
-      // FIXED: Check if user is logged in by checking sessionStorage
-      const userRole = sessionStorage.getItem("userRole");
+      const userRole = localStorage.getItem("userRole");
 
       if (!userRole) {
         toast.error("Please login to register for events");
@@ -69,12 +68,11 @@ const EventCard = ({
         return;
       }
 
-      // FIXED: Use axiosInstance which handles cookies automatically
       const res = await axiosInstance.post(
         `/registrations/${eventId}/register`,
         {},
         {
-          withCredentials: true, // This is already set in axiosInstance
+          withCredentials: true,
         }
       );
 

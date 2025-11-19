@@ -557,7 +557,7 @@ exports.forgotPassword = async (req, res) => {
       const resetURL = `${frontendUrl}/reset-password/${resetToken}`;
 
       // FIXED: Use environment-based email configuration
-      const transporter = nodemailer.createTransporter({
+      const transporter = nodemailer.createTransport({
         service: "Gmail",
         auth: {
           user: process.env.EMAIL_USER,
